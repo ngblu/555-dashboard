@@ -26,11 +26,7 @@ interface Lead {
   notes: string;
 }
 
-const initialLeads: Lead[] = [
-  { id: "l1", businessName: "Summit Lawn & Garden", website: "summitlawn.wixsite.com/home", industry: "Landscaping", issues: ["Free Wix site", "No mobile version", "12s load time"], status: "audited", contactEmail: "info@summitlawn.com", notes: "Terrible site. Easy sell." },
-  { id: "l2", businessName: "Premier Pressure Washing", website: "facebook.com/premierpw", industry: "Pressure Washing", issues: ["No website", "Facebook only"], status: "emailed", contactEmail: "luis@premierpw.com", notes: "Sent audit email 6/15. Waiting." },
-  { id: "l3", businessName: "Spotless Cleaning Co.", website: "spotlesscleaning.wordpress.com", industry: "Cleaning", issues: ["Free WordPress", "Broken form", "Stock photos"], status: "found", contactEmail: "", notes: "4.8 stars on Google Maps but garbage website." },
-];
+const initialLeads: Lead[] = [];
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);

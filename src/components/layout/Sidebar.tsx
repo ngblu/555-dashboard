@@ -9,10 +9,12 @@ import {
   DollarSign,
   CheckSquare,
   Crosshair,
+  FileSearch,
 } from "lucide-react";
 
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Overview" },
+  { href: "/audit", icon: FileSearch, label: "Site Audit" },
   { href: "/leads", icon: Crosshair, label: "Leads" },
   { href: "/clients", icon: Users, label: "Clients" },
   { href: "/projects", icon: FolderKanban, label: "Projects" },

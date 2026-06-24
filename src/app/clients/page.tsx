@@ -24,11 +24,7 @@ interface Client {
   notes: string;
 }
 
-const initialClients: Client[] = [
-  { id: "c1", name: "Marcus Taylor", business: "GreenEdge Landscaping", email: "marcus@greenedge.com", phone: "(555) 123-4567", status: "active", value: 2500, notes: "Full website tier. Wants blog later." },
-  { id: "c2", name: "DeShawn Kelly", business: "Prestige Auto Detail", email: "deshawn@prestigedetail.com", phone: "(555) 234-5678", status: "proposal", value: 1000, notes: "Facebook only. Needs everything." },
-  { id: "c3", name: "Rick Sandoval", business: "ClearView Window Washing", email: "rick@clearviewwindows.com", phone: "(555) 345-6789", status: "completed", value: 2500, notes: "Full rebuild done. Now on maintenance." },
-];
+const initialClients: Client[] = [];
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>(initialClients);

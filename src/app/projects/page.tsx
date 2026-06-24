@@ -23,11 +23,7 @@ interface Project {
   dueDate: string;
 }
 
-const initialProjects: Project[] = [
-  { id: "p1", name: "GreenEdge Full Website", client: "GreenEdge Landscaping", status: "in-progress", tier: "Full Website", value: 2500, progress: 65, dueDate: "Jun 26" },
-  { id: "p2", name: "Prestige Landing Page", client: "Prestige Auto Detail", status: "not-started", tier: "Landing Page", value: 1000, progress: 0, dueDate: "TBD" },
-  { id: "p3", name: "ClearView Full Rebuild", client: "ClearView Window Washing", status: "completed", tier: "Full Website", value: 2500, progress: 100, dueDate: "Jun 10" },
-];
+const initialProjects: Project[] = [];
 
 export default function ProjectsPage() {
   const [projects] = useState<Project[]>(initialProjects);

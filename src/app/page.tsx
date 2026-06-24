@@ -23,59 +23,48 @@ const revenueData = [
   { month: "Feb", amount: 0 },
   { month: "Mar", amount: 0 },
   { month: "Apr", amount: 0 },
-  { month: "May", amount: 1250 },
-  { month: "Jun", amount: 3750 },
+  { month: "May", amount: 0 },
+  { month: "Jun", amount: 0 },
 ];
 
 const stats = [
   {
     label: "Revenue (This Month)",
-    value: "$3,750",
-    change: "+200%",
+    value: "$0",
+    change: "Get started",
     icon: DollarSign,
     color: "text-accent",
     bg: "bg-accent/10",
   },
   {
     label: "Active Clients",
-    value: "2",
-    change: "+1 new",
+    value: "0",
+    change: "Add first client",
     icon: Users,
     color: "text-primary",
     bg: "bg-primary/10",
   },
   {
     label: "Active Projects",
-    value: "1",
-    change: "1 pending",
+    value: "0",
+    change: "None yet",
     icon: FolderKanban,
     color: "text-secondary",
     bg: "bg-secondary/10",
   },
   {
     label: "Leads in Pipeline",
-    value: "3",
-    change: "1 replied",
+    value: "0",
+    change: "Start prospecting",
     icon: Crosshair,
     color: "text-warning",
     bg: "bg-warning/10",
   },
 ];
 
-const recentActivity = [
-  { time: "2h ago", text: "GreenEdge homepage hero section completed", type: "project" },
-  { time: "5h ago", text: "Sent cold email to Premier Pressure Washing", type: "lead" },
-  { time: "1d ago", text: "ClearView final payment received — $1,250", type: "revenue" },
-  { time: "1d ago", text: "Found new lead: Spotless Cleaning Co.", type: "lead" },
-  { time: "2d ago", text: "GreenEdge deposit received — $1,250", type: "revenue" },
-  { time: "3d ago", text: "Prestige Auto Detail proposal sent", type: "client" },
-];
+const recentActivity: { time: string; text: string; type: string }[] = [];
 
-const urgentTasks = [
-  { title: "Send Prestige proposal PDF", priority: "urgent", due: "Today" },
-  { title: "Finish GreenEdge hero section", priority: "high", due: "Jun 20" },
-  { title: "Cold email 10 new businesses", priority: "medium", due: "This week" },
-];
+const urgentTasks: { title: string; priority: string; due: string }[] = [];
 
 const priorityColors: Record<string, string> = {
   urgent: "bg-danger/20 text-danger border-danger/30",

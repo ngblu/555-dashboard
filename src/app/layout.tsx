@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/layout/Sidebar";
+import PWARegister from "@/components/layout/PWARegister";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
   title: "555 Command Center",
   description: "555 Digital — Business Dashboard",
   manifest: "/manifest.json",
+  themeColor: "#00D4FF",
 };
 
 export default function RootLayout({
@@ -20,6 +22,12 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#00D4FF" />
+        <link rel="icon" type="image/svg+xml" href="/icon-192.svg" />
+        <link rel="apple-touch-icon" href="/icon-192.svg" />
+      </head>
       <body className="min-h-full flex bg-background text-text-primary">
         <Sidebar />
         <main className="flex-1 ml-16 lg:ml-64 min-h-screen">
@@ -27,6 +35,7 @@ export default function RootLayout({
             {children}
           </div>
         </main>
+        <PWARegister />
       </body>
     </html>
   );

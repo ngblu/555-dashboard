@@ -13,13 +13,7 @@ const priorityColors: Record<Priority, string> = {
 
 interface Task { id: string; title: string; priority: Priority; completed: boolean; dueDate: string; }
 
-const initialTasks: Task[] = [
-  { id: "t1", title: "Finish GreenEdge homepage hero section", priority: "high", completed: false, dueDate: "Jun 20" },
-  { id: "t2", title: "Send Prestige proposal PDF", priority: "urgent", completed: false, dueDate: "Today" },
-  { id: "t3", title: "Set up ClearView monthly maintenance", priority: "medium", completed: false, dueDate: "" },
-  { id: "t4", title: "Cold email 10 new landscaping businesses", priority: "medium", completed: false, dueDate: "This week" },
-  { id: "t5", title: "Update 555 Digital portfolio with ClearView case study", priority: "low", completed: false, dueDate: "" },
-];
+const initialTasks: Task[] = [];
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);

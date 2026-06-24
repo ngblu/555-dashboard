@@ -8,16 +8,11 @@ const monthlyData = [
   { month: "Feb", revenue: 0 },
   { month: "Mar", revenue: 0 },
   { month: "Apr", revenue: 0 },
-  { month: "May", revenue: 1250 },
-  { month: "Jun", revenue: 3750 },
+  { month: "May", revenue: 0 },
+  { month: "Jun", revenue: 0 },
 ];
 
-const payments = [
-  { id: "r1", client: "ClearView Window Washing", amount: 1250, type: "Deposit", date: "May 20", status: "paid" },
-  { id: "r2", client: "ClearView Window Washing", amount: 1250, type: "Final", date: "Jun 10", status: "paid" },
-  { id: "r3", client: "GreenEdge Landscaping", amount: 1250, type: "Deposit", date: "Jun 5", status: "paid" },
-  { id: "r4", client: "GreenEdge Landscaping", amount: 1250, type: "Final", date: "Jun 26", status: "pending" },
-];
+const payments: { id: string; client: string; amount: number; type: string; date: string; status: string }[] = [];
 
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
   if (!active || !payload?.length) return null;
