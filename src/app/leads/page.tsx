@@ -1,12 +1,33 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Crosshair, Plus, Globe, Mail, X, RefreshCw, Zap } from "lucide-react";
+import {
+  Crosshair,
+  Plus,
+  Globe,
+  Mail,
+  X,
+  RefreshCw,
+  Zap,
+  UserPlus,
+  FolderPlus,
+  CheckCircle2,
+} from "lucide-react";
+import { useData } from "@/lib/store";
+import type { Lead, LeadStatus } from "@/lib/types";
+import Link from "next/link";
+import { FileSearch } from "lucide-react";
 
-const statusFlow = ["found", "audited", "emailed", "replied", "converted", "dead"] as const;
-type Status = (typeof statusFlow)[number];
+const statusFlow: LeadStatus[] = [
+  "found",
+  "audited",
+  "emailed",
+  "replied",
+  "converted",
+  "dead",
+];
 
-const statusColors: Record<Status, string> = {
+const statusColors: Record<LeadStatus, string> = {
   found: "bg-text-muted/20 text-text-secondary",
   audited: "bg-warning/20 text-warning",
   emailed: "bg-primary/20 text-primary",
@@ -15,27 +36,15 @@ const statusColors: Record<Status, string> = {
   dead: "bg-danger/20 text-danger",
 };
 
-interface Lead {
-  id: string;
-  businessName: string;
-  website: string;
-  industry: string;
-  issues: string[];
-  status: Status;
-  contactEmail: string;
-  notes: string;
-  audit?: {
-    performance: number;
-    seo: number;
-    fcp: string;
-    lcp: string;
-    speedIndex: string;
-  } | null;
-  source?: "manual" | "website";
-}
-
 export default function LeadsPage() {
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const {
+    leads,
+    setLeads,
+    convertLeadToClient,
+    convertLeadToProject,
+    hydrated,
+  } = useData();
+
   const [showAdd, setShowAdd] = useState(false);
   const [newLead, setNewLead] = useState({
     businessName: "",
@@ -45,6 +54,12 @@ export default function LeadsPage() {
     notes: "",
   });
   const [refreshing, setRefreshing] = useState(false);
+  const [toast, setToast] = useState("");
+
+  const flash = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2500);
+  };
 
   // Poll for website submissions
   const fetchWebLeads = useCallback(async () => {
@@ -61,19 +76,22 @@ export default function LeadsPage() {
               website: (l.website as string) || "",
               industry: "",
               issues: [],
-              status: "found" as Status,
+              status: "found" as LeadStatus,
               contactEmail: (l.email as string) || "",
-              notes: `Budget: ${(l.budget as string) || "N/A"}\nMessage: ${(l.message as string) || ""}`,
+              notes: `Budget: ${(l.budget as string) || "N/A"}\nMessage: ${
+                (l.message as string) || ""
+              }`,
               audit: l.audit as Lead["audit"],
               source: "website" as const,
+              createdAt:
+                (l.createdAt as string) || new Date().toISOString(),
             })
           );
           // Merge without duplicates
           setLeads((prev) => {
             const existingIds = new Set(prev.map((p) => p.id));
-            const newOnes = webLeads.filter(
-              (w) => !existingIds.has(w.id)
-            );
+            const newOnes = webLeads.filter((w) => !existingIds.has(w.id));
+            if (newOnes.length === 0) return prev;
             return [...newOnes, ...prev];
           });
         }
@@ -82,25 +100,27 @@ export default function LeadsPage() {
       // API not available, that's fine
     }
     setRefreshing(false);
-  }, []);
+  }, [setLeads]);
 
   useEffect(() => {
+    if (!hydrated) return;
     fetchWebLeads();
     const interval = setInterval(fetchWebLeads, 30000); // Poll every 30s
     return () => clearInterval(interval);
-  }, [fetchWebLeads]);
+  }, [fetchWebLeads, hydrated]);
 
   const addLead = () => {
     if (!newLead.businessName) return;
-    setLeads([
+    setLeads((prev) => [
       {
         ...newLead,
         id: "l" + Date.now(),
         issues: [],
         status: "found",
         source: "manual",
+        createdAt: new Date().toISOString(),
       },
-      ...leads,
+      ...prev,
     ]);
     setNewLead({
       businessName: "",
@@ -113,8 +133,8 @@ export default function LeadsPage() {
   };
 
   const cycleStatus = (id: string) => {
-    setLeads(
-      leads.map((l) => {
+    setLeads((prev) =>
+      prev.map((l) => {
         if (l.id !== id) return l;
         const idx = statusFlow.indexOf(l.status);
         const next = statusFlow[(idx + 1) % statusFlow.length];
@@ -124,13 +144,32 @@ export default function LeadsPage() {
   };
 
   const removeLead = (id: string) =>
-    setLeads(leads.filter((l) => l.id !== id));
+    setLeads((prev) => prev.filter((l) => l.id !== id));
+
+  const handleConvertToClient = (lead: Lead) => {
+    convertLeadToClient(lead.id, lead.audit ? 0 : 0);
+    flash(`${lead.businessName} added to Clients ✓`);
+  };
+
+  const handleConvertToProject = (lead: Lead) => {
+    convertLeadToProject(lead.id, {
+      name: `${lead.businessName} Website`,
+      tier: "full",
+    });
+    flash(`Client + Project created for ${lead.businessName} ✓`);
+  };
 
   const inputCls =
     "w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-text-primary text-sm focus:border-primary focus:outline-none";
 
   return (
     <div className="space-y-6">
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-accent/15 border border-accent/40 text-accent px-4 py-3 rounded-lg text-sm font-medium shadow-lg animate-slide-in flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" /> {toast}
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -252,6 +291,11 @@ export default function LeadsPage() {
                       <Zap className="w-3 h-3" /> From website
                     </span>
                   )}
+                  {lead.convertedClientId && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Client
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-4 text-text-muted text-xs">
                   {lead.website && (
@@ -315,7 +359,7 @@ export default function LeadsPage() {
                   </div>
                 )}
                 {lead.issues.length > 0 && (
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex flex-wrap gap-2 mt-2">
                     {lead.issues.map((issue) => (
                       <span
                         key={issue}
@@ -326,6 +370,34 @@ export default function LeadsPage() {
                     ))}
                   </div>
                 )}
+
+                {/* Conversion actions */}
+                <div className="flex flex-wrap gap-2 mt-4">
+                  <Link
+                    href={`/audit?leadId=${encodeURIComponent(
+                      lead.id
+                    )}&url=${encodeURIComponent(
+                      lead.website || ""
+                    )}&business=${encodeURIComponent(lead.businessName)}`}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-warning/30 text-warning bg-warning/5 hover:bg-warning/15 transition-all flex items-center gap-1.5"
+                  >
+                    <FileSearch className="w-3.5 h-3.5" /> Run Audit
+                  </Link>
+                  <button
+                    onClick={() => handleConvertToClient(lead)}
+                    disabled={!!lead.convertedClientId}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-primary/30 text-primary bg-primary/5 hover:bg-primary/15 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    {lead.convertedClientId ? "Converted" : "Convert to Client"}
+                  </button>
+                  <button
+                    onClick={() => handleConvertToProject(lead)}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-secondary/30 text-secondary bg-secondary/5 hover:bg-secondary/15 transition-all flex items-center gap-1.5"
+                  >
+                    <FolderPlus className="w-3.5 h-3.5" /> Spin up Project
+                  </button>
+                </div>
               </div>
               <button
                 onClick={() => removeLead(lead.id)}

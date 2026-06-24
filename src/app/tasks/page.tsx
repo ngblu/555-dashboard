@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { CheckSquare, Plus, X } from "lucide-react";
+import { useData } from "@/lib/store";
+import type { Priority } from "@/lib/types";
 
-type Priority = "low" | "medium" | "high" | "urgent";
 const priorityColors: Record<Priority, string> = {
   urgent: "bg-danger/20 text-danger border-danger/30",
   high: "bg-warning/20 text-warning border-warning/30",
@@ -11,20 +12,30 @@ const priorityColors: Record<Priority, string> = {
   low: "bg-text-muted/20 text-text-muted border-text-muted/30",
 };
 
-interface Task { id: string; title: string; priority: Priority; completed: boolean; dueDate: string; }
-
-const initialTasks: Task[] = [];
-
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const { tasks, setTasks } = useData();
   const [newTitle, setNewTitle] = useState("");
   const [newPriority, setNewPriority] = useState<Priority>("medium");
 
-  const toggleTask = (id: string) => setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-  const removeTask = (id: string) => setTasks(tasks.filter(t => t.id !== id));
+  const toggleTask = (id: string) =>
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
+    );
+  const removeTask = (id: string) =>
+    setTasks((prev) => prev.filter((t) => t.id !== id));
   const addTask = () => {
     if (!newTitle.trim()) return;
-    setTasks([{ id: "t" + Date.now(), title: newTitle, priority: newPriority, completed: false, dueDate: "" }, ...tasks]);
+    setTasks((prev) => [
+      {
+        id: "t" + Date.now(),
+        title: newTitle,
+        priority: newPriority,
+        completed: false,
+        dueDate: "",
+        createdAt: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
     setNewTitle("");
   };
 

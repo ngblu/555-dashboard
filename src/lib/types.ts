@@ -1,37 +1,33 @@
-export interface Client {
-  id: string;
-  name: string;
-  business: string;
-  email: string;
-  phone: string;
-  website: string;
-  status: "lead" | "contacted" | "proposal" | "active" | "completed";
-  value: number;
-  notes: string;
-  createdAt: string;
+// ============================================================
+// 555 Command Center — unified data types
+// ============================================================
+
+export interface AuditMetrics {
+  url: string;
+  fetchedAt: string;
+  strategy: string;
+  performance: number;
+  accessibility: number;
+  bestPractices: number;
+  seo: number;
+  fcp: string;
+  lcp: string;
+  cls: string;
+  tbt: string;
+  speedIndex: string;
+  ttfb: string;
+  mobileFriendly: boolean;
+  issues: string[];
+  opportunities: string[];
 }
 
-export interface Project {
-  id: string;
-  clientId: string;
-  name: string;
-  status: "not-started" | "in-progress" | "review" | "completed";
-  tier: "landing" | "full" | "custom";
-  value: number;
-  startDate: string;
-  dueDate: string;
-  progress: number;
-}
-
-export interface Task {
-  id: string;
-  title: string;
-  projectId?: string;
-  priority: "low" | "medium" | "high" | "urgent";
-  completed: boolean;
-  dueDate?: string;
-  createdAt: string;
-}
+export type LeadStatus =
+  | "found"
+  | "audited"
+  | "emailed"
+  | "replied"
+  | "converted"
+  | "dead";
 
 export interface Lead {
   id: string;
@@ -39,9 +35,78 @@ export interface Lead {
   website: string;
   industry: string;
   issues: string[];
-  status: "found" | "audited" | "emailed" | "replied" | "converted" | "dead";
-  contactEmail?: string;
+  status: LeadStatus;
+  contactEmail: string;
   notes: string;
+  audit?: AuditMetrics | null;
+  source?: "manual" | "website";
+  createdAt: string;
+  // set once converted so we don't double-convert
+  convertedClientId?: string;
+}
+
+export interface SavedAudit {
+  id: string;
+  url: string;
+  businessName: string;
+  googleInfo: string;
+  manualNotes: string;
+  result: AuditMetrics | null;
+  createdAt: string;
+  // link back to the lead this audit came from / created
+  leadId?: string;
+}
+
+export type ClientStatus =
+  | "lead"
+  | "contacted"
+  | "proposal"
+  | "active"
+  | "completed";
+
+export interface Client {
+  id: string;
+  name: string;
+  business: string;
+  email: string;
+  phone: string;
+  website: string;
+  status: ClientStatus;
+  value: number;
+  notes: string;
+  createdAt: string;
+  // provenance
+  fromLeadId?: string;
+}
+
+export type ProjectStatus =
+  | "not-started"
+  | "in-progress"
+  | "review"
+  | "completed";
+
+export interface Project {
+  id: string;
+  clientId: string;
+  client: string; // denormalized business name for display
+  name: string;
+  status: ProjectStatus;
+  tier: "landing" | "full" | "custom" | string;
+  value: number;
+  startDate: string;
+  dueDate: string;
+  progress: number;
+}
+
+export type Priority = "low" | "medium" | "high" | "urgent";
+
+export interface Task {
+  id: string;
+  title: string;
+  projectId?: string;
+  priority: Priority;
+  completed: boolean;
+  dueDate?: string;
   createdAt: string;
 }
 

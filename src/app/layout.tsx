@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import PWARegister from "@/components/layout/PWARegister";
+import { DataProvider } from "@/lib/store";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -29,13 +30,15 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.svg" />
       </head>
       <body className="min-h-full flex bg-background text-text-primary">
-        <Sidebar />
-        <main className="flex-1 ml-16 lg:ml-64 min-h-screen">
-          <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
-            {children}
-          </div>
-        </main>
-        <PWARegister />
+        <DataProvider>
+          <Sidebar />
+          <main className="flex-1 ml-16 lg:ml-64 min-h-screen">
+            <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
+              {children}
+            </div>
+          </main>
+          <PWARegister />
+        </DataProvider>
       </body>
     </html>
   );

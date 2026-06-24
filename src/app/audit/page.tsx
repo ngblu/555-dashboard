@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   FileSearch,
   Globe,
@@ -11,41 +12,17 @@ import {
   Smartphone,
   Monitor,
   Download,
+  UserPlus,
 } from "lucide-react";
+import { useData } from "@/lib/store";
+import type { AuditMetrics, SavedAudit } from "@/lib/types";
 
 function parseNum(val: string): number {
   const n = parseFloat(val.replace(/[^0-9.]/g, ""));
   return isNaN(n) ? 999 : n;
 }
 
-interface AuditResult {
-  url: string;
-  fetchedAt: string;
-  strategy: string;
-  performance: number;
-  accessibility: number;
-  bestPractices: number;
-  seo: number;
-  fcp: string;
-  lcp: string;
-  cls: string;
-  tbt: string;
-  speedIndex: string;
-  ttfb: string;
-  mobileFriendly: boolean;
-  issues: string[];
-  opportunities: string[];
-}
-
-interface SavedAudit {
-  id: string;
-  url: string;
-  businessName: string;
-  googleInfo: string;
-  manualNotes: string;
-  result: AuditResult | null;
-  createdAt: string;
-}
+type AuditResult = AuditMetrics;
 
 function ScoreCircle({ score, label }: { score: number; label: string }) {
   const color =
@@ -97,7 +74,16 @@ function MetricRow({
   );
 }
 
-export default function AuditPage() {
+function AuditPageInner() {
+  const searchParams = useSearchParams();
+  const {
+    audits: savedAudits,
+    setAudits: setSavedAudits,
+    leads,
+    attachAuditToLead,
+    leadFromAudit,
+  } = useData();
+
   const [url, setUrl] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [googleInfo, setGoogleInfo] = useState("");
@@ -106,7 +92,18 @@ export default function AuditPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AuditResult | null>(null);
   const [error, setError] = useState("");
-  const [savedAudits, setSavedAudits] = useState<SavedAudit[]>([]);
+  // when arriving from a lead (?leadId=...), remember it so we can attach back
+  const [linkedLeadId, setLinkedLeadId] = useState<string | null>(null);
+
+  // Prefill from query params (e.g. "Run audit" from a lead)
+  useEffect(() => {
+    const qUrl = searchParams.get("url");
+    const qName = searchParams.get("business");
+    const qLead = searchParams.get("leadId");
+    if (qUrl) setUrl(qUrl);
+    if (qName) setBusinessName(qName);
+    if (qLead) setLinkedLeadId(qLead);
+  }, [searchParams]);
 
   const runAudit = async () => {
     if (!url.trim()) return;
@@ -204,13 +201,41 @@ export default function AuditPage() {
       manualNotes: manualNotes.trim(),
       result,
       createdAt: new Date().toISOString(),
+      leadId: linkedLeadId || undefined,
     };
-    setSavedAudits([audit, ...savedAudits]);
+    setSavedAudits((prev) => [audit, ...prev]);
+    // if this audit came from a lead, push the metrics back onto it
+    if (linkedLeadId && result) {
+      attachAuditToLead(linkedLeadId, result);
+    }
     setUrl("");
     setBusinessName("");
     setGoogleInfo("");
     setManualNotes("");
     setResult(null);
+    setLinkedLeadId(null);
+  };
+
+  // Save the current scan straight into the Lead Pipeline
+  const saveAsLead = () => {
+    const draft: SavedAudit = {
+      id: "a" + Date.now(),
+      url: url.trim(),
+      businessName: businessName.trim(),
+      googleInfo: googleInfo.trim(),
+      manualNotes: manualNotes.trim(),
+      result,
+      createdAt: new Date().toISOString(),
+    };
+    // persist the audit too so it shows under Saved Audits, then make a lead
+    setSavedAudits((prev) => [draft, ...prev]);
+    leadFromAudit(draft);
+    setUrl("");
+    setBusinessName("");
+    setGoogleInfo("");
+    setManualNotes("");
+    setResult(null);
+    setLinkedLeadId(null);
   };
 
   const exportAudit = () => {
@@ -272,6 +297,18 @@ Audit by 555 Digital — https://555digital.dev
           Scan any website and generate a free audit report to send prospects
         </p>
       </div>
+
+      {linkedLeadId && (
+        <div className="bg-primary/5 border border-primary/20 rounded-lg px-4 py-3 text-sm text-primary flex items-center gap-2">
+          <UserPlus className="w-4 h-4" />
+          Auditing for lead:{" "}
+          <span className="font-semibold">
+            {leads.find((l) => l.id === linkedLeadId)?.businessName ||
+              "selected lead"}
+          </span>
+          . Saving will attach these scores back to the lead.
+        </div>
+      )}
 
       {/* Audit Form */}
       <div className="bg-surface border border-border rounded-xl p-6 space-y-4">
@@ -403,10 +440,16 @@ Audit by 555 Digital — https://555digital.dev
                   <Download className="w-4 h-4" /> Export Report
                 </button>
                 <button
+                  onClick={saveAsLead}
+                  className="bg-warning/10 text-warning border border-warning/20 px-4 py-2 rounded-lg text-sm font-medium hover:bg-warning/20 transition-all flex items-center gap-2"
+                >
+                  <UserPlus className="w-4 h-4" /> Save as Lead
+                </button>
+                <button
                   onClick={saveAudit}
                   className="bg-primary/10 text-primary border border-primary/20 px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/20 transition-all"
                 >
-                  Save Audit
+                  {linkedLeadId ? "Save & Attach to Lead" : "Save Audit"}
                 </button>
               </div>
             </div>
@@ -548,5 +591,19 @@ Audit by 555 Digital — https://555digital.dev
         </div>
       )}
     </div>
+  );
+}
+
+export default function AuditPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center gap-2 text-text-muted text-sm">
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading audit…
+        </div>
+      }
+    >
+      <AuditPageInner />
+    </Suspense>
   );
 }
