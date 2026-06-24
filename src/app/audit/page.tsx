@@ -13,6 +13,11 @@ import {
   Download,
 } from "lucide-react";
 
+function parseNum(val: string): number {
+  const n = parseFloat(val.replace(/[^0-9.]/g, ""));
+  return isNaN(n) ? 999 : n;
+}
+
 interface AuditResult {
   url: string;
   fetchedAt: string;
@@ -118,7 +123,10 @@ export default function AuditPage() {
       )}&strategy=${strategy}&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO`;
 
       const res = await fetch(apiUrl);
-      if (!res.ok) throw new Error(`API returned ${res.status}`);
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(`PageSpeed API returned ${res.status}: ${errText.slice(0, 200)}`);
+      }
       const data = await res.json();
 
       const lh = data.lighthouseResult;
@@ -399,12 +407,12 @@ Audit by 555 Digital — https://555digital.dev
             <h2 className="text-sm font-semibold text-text-primary mb-4">
               Core Web Vitals
             </h2>
-            <MetricRow label="First Contentful Paint" value={result.fcp} good={parseFloat(result.fcp) < 2} />
-            <MetricRow label="Largest Contentful Paint" value={result.lcp} good={parseFloat(result.lcp) < 2.5} />
-            <MetricRow label="Cumulative Layout Shift" value={result.cls} good={parseFloat(result.cls) < 0.1} />
-            <MetricRow label="Total Blocking Time" value={result.tbt} good={parseFloat(result.tbt) < 300} />
-            <MetricRow label="Speed Index" value={result.speedIndex} good={parseFloat(result.speedIndex) < 4} />
-            <MetricRow label="Time to First Byte" value={result.ttfb} good={parseFloat(result.ttfb) < 800} />
+            <MetricRow label="First Contentful Paint" value={result.fcp} good={parseNum(result.fcp) < 2} />
+            <MetricRow label="Largest Contentful Paint" value={result.lcp} good={parseNum(result.lcp) < 2.5} />
+            <MetricRow label="Cumulative Layout Shift" value={result.cls} good={parseNum(result.cls) < 0.1} />
+            <MetricRow label="Total Blocking Time" value={result.tbt} good={parseNum(result.tbt) < 300} />
+            <MetricRow label="Speed Index" value={result.speedIndex} good={parseNum(result.speedIndex) < 4} />
+            <MetricRow label="Time to First Byte" value={result.ttfb} good={parseNum(result.ttfb) < 800} />
           </div>
 
           {/* Issues + Opportunities */}

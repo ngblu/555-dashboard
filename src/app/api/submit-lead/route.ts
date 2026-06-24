@@ -1,17 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { join } from "path";
 
-// In-memory store (resets on cold start, but works for MVP)
-// For production, replace with Vercel KV or Postgres
-const leads: Record<string, unknown>[] = [];
+const STORE_PATH = join("/tmp", "555-leads.json");
 
-// Make it available globally so the GET endpoint can read it
-if (!(globalThis as Record<string, unknown>).__leads) {
-  (globalThis as Record<string, unknown>).__leads = leads;
+function readLeads(): Record<string, unknown>[] {
+  try {
+    if (existsSync(STORE_PATH)) {
+      return JSON.parse(readFileSync(STORE_PATH, "utf-8"));
+    }
+  } catch {}
+  return [];
 }
 
-function getLeads(): Record<string, unknown>[] {
-  return ((globalThis as Record<string, unknown>).__leads as Record<string, unknown>[]) || [];
+function writeLeads(leads: Record<string, unknown>[]) {
+  try {
+    writeFileSync(STORE_PATH, JSON.stringify(leads));
+  } catch {}
 }
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,23 +36,31 @@ export async function POST(req: NextRequest) {
       try {
         let targetUrl = website.trim();
         if (!targetUrl.startsWith("http")) targetUrl = "https://" + targetUrl;
-        
-        const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(targetUrl)}&strategy=mobile&category=PERFORMANCE&category=SEO`;
-        const auditRes = await fetch(apiUrl, { signal: AbortSignal.timeout(30000) });
-        
+
+        const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(
+          targetUrl
+        )}&strategy=mobile&category=PERFORMANCE&category=SEO`;
+        const auditRes = await fetch(apiUrl, {
+          signal: AbortSignal.timeout(25000),
+        });
+
         if (auditRes.ok) {
           const data = await auditRes.json();
           const lh = data.lighthouseResult;
           auditData = {
-            performance: Math.round((lh.categories?.performance?.score ?? 0) * 100),
+            performance: Math.round(
+              (lh.categories?.performance?.score ?? 0) * 100
+            ),
             seo: Math.round((lh.categories?.seo?.score ?? 0) * 100),
-            fcp: lh.audits?.["first-contentful-paint"]?.displayValue ?? "N/A",
-            lcp: lh.audits?.["largest-contentful-paint"]?.displayValue ?? "N/A",
+            fcp:
+              lh.audits?.["first-contentful-paint"]?.displayValue ?? "N/A",
+            lcp:
+              lh.audits?.["largest-contentful-paint"]?.displayValue ?? "N/A",
             speedIndex: lh.audits?.["speed-index"]?.displayValue ?? "N/A",
           };
         }
       } catch {
-        // Audit failed, continue without it
+        // Audit failed silently
       }
     }
 
@@ -56,10 +76,12 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    // Store in memory
-    getLeads().unshift(lead);
+    // Persist to /tmp file
+    const leads = readLeads();
+    leads.unshift(lead);
+    writeLeads(leads.slice(0, 100)); // Keep last 100
 
-    // Try to send email notification via Resend (if configured)
+    // Try email notification
     const resendKey = process.env.RESEND_API_KEY;
     const notifyEmail = process.env.NOTIFY_EMAIL;
     if (resendKey && notifyEmail) {
@@ -77,49 +99,33 @@ export async function POST(req: NextRequest) {
             html: `<h2>New Audit Request</h2>
 <p><strong>Name:</strong> ${name}</p>
 <p><strong>Email:</strong> ${email}</p>
-<p><strong>Website:</strong> ${website || "None provided"}</p>
+<p><strong>Website:</strong> ${website || "None"}</p>
 <p><strong>Budget:</strong> ${budget || "Not specified"}</p>
 <p><strong>Message:</strong> ${message || "None"}</p>
-${auditData ? `<h3>Auto-Audit Results</h3>
-<p>Performance: ${auditData.performance}/100</p>
-<p>SEO: ${auditData.seo}/100</p>
-<p>FCP: ${auditData.fcp}</p>
-<p>LCP: ${auditData.lcp}</p>` : "<p>No website provided for audit</p>"}`,
+${
+  auditData
+    ? `<h3>Auto-Audit</h3><p>Performance: ${auditData.performance}/100 | SEO: ${auditData.seo}/100 | FCP: ${auditData.fcp} | LCP: ${auditData.lcp}</p>`
+    : "<p>No audit data</p>"
+}`,
           }),
         });
-      } catch {
-        // Email failed, continue
-      }
+      } catch {}
     }
 
-    return NextResponse.json({ success: true, lead }, { 
-      status: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-    });
-  } catch {
-    return NextResponse.json({ success: false, error: "Failed to process submission" }, { status: 500 });
+    return NextResponse.json({ success: true, lead }, { headers: corsHeaders });
+  } catch (e) {
+    return NextResponse.json(
+      { success: false, error: String(e) },
+      { status: 500, headers: corsHeaders }
+    );
   }
 }
 
 export async function GET() {
-  return NextResponse.json({ leads: getLeads() }, {
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-    },
-  });
+  const leads = readLeads();
+  return NextResponse.json({ leads }, { headers: corsHeaders });
 }
 
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
-  });
+  return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
