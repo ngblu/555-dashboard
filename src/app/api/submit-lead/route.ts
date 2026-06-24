@@ -37,9 +37,11 @@ export async function POST(req: NextRequest) {
         let targetUrl = website.trim();
         if (!targetUrl.startsWith("http")) targetUrl = "https://" + targetUrl;
 
+        const apiKey = process.env.PAGESPEED_API_KEY || "";
+        const keyParam = apiKey ? `&key=${apiKey}` : "";
         const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(
           targetUrl
-        )}&strategy=mobile&category=PERFORMANCE&category=SEO`;
+        )}&strategy=mobile&category=PERFORMANCE&category=SEO${keyParam}`;
         const auditRes = await fetch(apiUrl, {
           signal: AbortSignal.timeout(25000),
         });

@@ -118,9 +118,11 @@ export default function AuditPage() {
     if (!targetUrl.startsWith("http")) targetUrl = "https://" + targetUrl;
 
     try {
+      const apiKey = process.env.NEXT_PUBLIC_PAGESPEED_KEY || "";
+      const keyParam = apiKey ? `&key=${apiKey}` : "";
       const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(
         targetUrl
-      )}&strategy=${strategy}&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO`;
+      )}&strategy=${strategy}&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO${keyParam}`;
 
       const res = await fetch(apiUrl);
       if (!res.ok) {
@@ -182,11 +184,12 @@ export default function AuditPage() {
 
       setResult(auditResult);
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Failed to run audit. Check the URL and try again."
-      );
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("429")) {
+        setError("Daily API limit reached. Try again tomorrow, or add your own free Google API key in Vercel env vars (NEXT_PUBLIC_PAGESPEED_KEY). You can also run audits manually at pagespeed.web.dev");
+      } else {
+        setError(msg || "Failed to run audit. Check the URL and try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -358,9 +361,23 @@ Audit by 555 Digital — https://555digital.dev
 
       {/* Error */}
       {error && (
-        <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-danger shrink-0" />
-          <p className="text-danger text-sm">{error}</p>
+        <div className="bg-danger/10 border border-danger/30 rounded-xl p-4">
+          <div className="flex items-center gap-3 mb-2">
+            <AlertTriangle className="w-5 h-5 text-danger shrink-0" />
+            <p className="text-danger text-sm">{error}</p>
+          </div>
+          {url.trim() && (
+            <a
+              href={`https://pagespeed.web.dev/analysis?url=${encodeURIComponent(
+                url.trim().startsWith("http") ? url.trim() : "https://" + url.trim()
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-primary text-sm mt-2 hover:underline"
+            >
+              <Globe className="w-4 h-4" /> Run audit on PageSpeed Insights instead →
+            </a>
+          )}
         </div>
       )}
 
