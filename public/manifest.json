@@ -1,0 +1,10 @@
+{
+  "name": "555 Command Center",
+  "short_name": "555 CMD",
+  "description": "555 Digital Business Dashboard",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#00D4FF",
+  "background_color": "#06070B",
+  "icons": []
+}
