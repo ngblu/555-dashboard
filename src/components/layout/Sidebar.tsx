@@ -21,6 +21,7 @@ import {
   X,  
 } from "lucide-react";
 import { useData } from "@/lib/store";
+import KoiPond from "@/components/ui/KoiPond";
 
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Overview" },
@@ -149,6 +150,11 @@ export default function Sidebar() {
         <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
           {navLinks}
         </nav>
+
+        {/* Koi Pond */}
+        <div className="px-3 pb-3 flex justify-center">
+          <KoiPond />
+        </div>
 
         {/* Footer */}
         <div className="border-t border-border p-4">
