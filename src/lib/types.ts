@@ -133,6 +133,18 @@ export interface Subscription {
   nextPayment: string;
 }
 
+export interface EmailLog {
+  id: string;
+  leadId?: string;
+  clientId?: string;
+  to: string;
+  subject: string;
+  status: "sent" | "opened" | "replied" | "bounced";
+  sentAt: string;
+  openedAt?: string;
+  notes?: string;
+}
+
 export interface Notification {
   id: string;
   message: string;

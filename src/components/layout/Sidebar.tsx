@@ -16,6 +16,7 @@ import {
   Loader2, 
   HardDrive,
   Repeat,
+  Mail,
   Menu,  
   X,  
 } from "lucide-react";
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/clients", icon: Users, label: "Clients" },
   { href: "/projects", icon: FolderKanban, label: "Projects" },
   { href: "/subscriptions", icon: Repeat, label: "Subscriptions" },
+  { href: "/emails", icon: Mail, label: "Emails" },
   { href: "/tasks", icon: CheckSquare, label: "Tasks" },
   { href: "/revenue", icon: DollarSign, label: "Revenue" },
 ];

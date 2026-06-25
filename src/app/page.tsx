@@ -7,6 +7,8 @@ import {
   Crosshair,
   TrendingUp,
   Clock,
+  Mail,
+  AlertCircle,
 } from "lucide-react";
 import {
   AreaChart,
@@ -47,7 +49,7 @@ function CustomTooltip({
 }
 
 export default function DashboardPage() {
-  const { leads, clients, projects, tasks, revenue } = useData();
+  const { leads, clients, projects, tasks, revenue, emailLogs } = useData();
 
   const now = new Date();
   const thisMonthKey = `${now.getFullYear()}-${now.getMonth()}`;

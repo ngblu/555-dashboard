@@ -23,6 +23,7 @@ import type {
   Project,
   Task,
   Revenue,
+  EmailLog,
   Subscription,
   Notification,
   AuditMetrics,
@@ -38,6 +39,7 @@ interface StoreShape {
   tasks: Task[];
   revenue: Revenue[];
   subscriptions: Subscription[];
+  emailLogs: EmailLog[];
   notifications: Notification[];
 }
 
@@ -49,6 +51,7 @@ const EMPTY: StoreShape = {
   tasks: [],
   revenue: [],
   subscriptions: [],
+  emailLogs: [],
   notifications: [],
 };
 
@@ -68,6 +71,9 @@ interface DataContextValue extends StoreShape {
   setRevenue: (v: Revenue[] | ((p: Revenue[]) => Revenue[])) => void;
   setNotifications: (v: Notification[] | ((p: Notification[]) => Notification[])) => void;
   setSubscriptions: (v: Subscription[] | ((p: Subscription[]) => Subscription[])) => void;
+  setEmailLogs: (v: EmailLog[] | ((p: EmailLog[]) => EmailLog[])) => void;
+  /** Log an email and auto-update the linked lead/client. */
+  logEmail: (entry: Omit<EmailLog, "id" | "sentAt">) => void;
 
   // ---- notification helpers ----
   addNotification: (message: string, type?: Notification["type"], link?: string) => void;
@@ -231,6 +237,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const setRevenue = useCallback(sliceSetter("revenue"), []);
   const setNotifications = useCallback(sliceSetter("notifications"), []);
   const setSubscriptions = useCallback(sliceSetter("subscriptions"), []);
+  const setEmailLogs = useCallback(sliceSetter("emailLogs"), []);
+
+  const logEmail = useCallback((entry: Omit<EmailLog, "id" | "sentAt">) => {
+    const log: EmailLog = {
+      ...entry,
+      id: uid("e_"),
+      sentAt: new Date().toISOString(),
+    };
+    setStore((prev) => {
+      const next = { ...prev, emailLogs: [log, ...prev.emailLogs].slice(0, 500) };
+      if (entry.leadId) {
+        next.leads = prev.leads.map((l) =>
+          l.id === entry.leadId && (l.status === "found" || l.status === "audited")
+            ? { ...l, status: "emailed" }
+            : l
+        );
+      }
+      // Add notification direct
+      next.notifications = [{ id: uid("n_"), message: `Email sent: ${entry.subject}`, type: "info" as const, read: false, createdAt: new Date().toISOString(), link: "/emails" }, ...prev.notifications].slice(0, 100);
+      return next;
+    });
+  }, []);
 
   // ---- notification helpers ----
   const addNotification = useCallback(
@@ -423,6 +451,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setTasks,
     setRevenue,
     setSubscriptions,
+    setEmailLogs,
+    logEmail,
     setNotifications,
     addNotification,
     markNotificationRead,
