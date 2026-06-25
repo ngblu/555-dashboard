@@ -11,77 +11,66 @@ function getStripe() {
   return _stripe;
 }
 
-async function getOrCreatePrice(stripe: any) {
-  // Check if price ID is in env
-  if (process.env.STRIPE_MAINTENANCE_PRICE_ID) {
-    return process.env.STRIPE_MAINTENANCE_PRICE_ID;
-  }
-
-  // Search for existing product
-  const products = await stripe.products.search({
-    query: "name:'555 Digital Maintenance'",
-    limit: 1,
-  });
-
-  let product;
-  if (products.data.length > 0) {
-    product = products.data[0];
-  } else {
-    product = await stripe.products.create({
-      name: "555 Digital Maintenance",
-      description: "Monthly website maintenance, updates, and support",
-    });
-  }
-
-  // Search for existing price on this product
-  const prices = await stripe.prices.list({
-    product: product.id,
-    recurring: { interval: "month" },
-    limit: 1,
-  });
-
-  if (prices.data.length > 0) {
-    return prices.data[0].id;
-  }
-
-  // Create the price
-  const price = await stripe.prices.create({
-    product: product.id,
-    unit_amount: 9900, // $99.00
-    currency: "usd",
-    recurring: { interval: "month" },
-    metadata: { type: "maintenance" },
-  });
-
-  return price.id;
-}
-
 export async function POST(req: NextRequest) {
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json(
-      { error: "Stripe not configured" },
+      { error: "Stripe not configured. Add STRIPE_SECRET_KEY to Vercel env vars." },
       { status: 503 }
     );
   }
 
   try {
-    const { clientName, clientEmail } = await req.json();
+    const { clientName, clientEmail, plan, amount } = await req.json();
     const stripe = getStripe();
     const origin = req.headers.get("origin") || "https://555-dashboard.vercel.app";
+    const unitAmount = Math.round((amount || 99) * 100); // Convert dollars to cents
 
-    const priceId = await getOrCreatePrice(stripe);
+    // Create a product for this subscription if needed
+    const productName = plan || "555 Digital Maintenance";
+    let product;
+    const products = await stripe.products.search({
+      query: `name:'${productName}'`,
+      limit: 1,
+    });
+    if (products.data.length > 0) {
+      product = products.data[0];
+    } else {
+      product = await stripe.products.create({
+        name: productName,
+        description: `Monthly ${productName.toLowerCase()} plan`,
+      });
+    }
+
+    // Check for existing price at this exact amount
+    let priceId;
+    const prices = await stripe.prices.list({
+      product: product.id,
+      recurring: { interval: "month" },
+      limit: 100,
+    });
+    const existingPrice = prices.data.find((p: any) => p.unit_amount === unitAmount);
+    if (existingPrice) {
+      priceId = existingPrice.id;
+    } else {
+      const price = await stripe.prices.create({
+        product: product.id,
+        unit_amount: unitAmount,
+        currency: "usd",
+        recurring: { interval: "month" },
+        metadata: { type: "maintenance", plan: productName },
+      });
+      priceId = price.id;
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
-        metadata: {
-          clientName: clientName || "",
-        },
+        metadata: { clientName: clientName || "", plan: productName, amount: String(amount) },
       },
       customer_email: clientEmail || undefined,
-      success_url: `${origin}/maintenance?subscribed=1`,
-      cancel_url: `${origin}/maintenance`,
+      success_url: `${origin}/subscriptions?subscribed=1`,
+      cancel_url: `${origin}/subscriptions`,
     });
 
     return NextResponse.json({ url: session.url });
