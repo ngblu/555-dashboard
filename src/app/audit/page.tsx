@@ -204,6 +204,12 @@ function AuditPageInner() {
       leadId: linkedLeadId || undefined,
     };
     setSavedAudits((prev) => [audit, ...prev]);
+    // POST to server so reports work on any device
+    fetch("/api/audit/" + audit.id, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ audit }),
+    }).catch(() => {});
     // if this audit came from a lead, push the metrics back onto it
     if (linkedLeadId && result) {
       attachAuditToLead(linkedLeadId, result);
