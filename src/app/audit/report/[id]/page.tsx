@@ -35,6 +35,19 @@ export default function AuditReportPage() {
   const [audit, setAudit] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Hide dashboard chrome — this page is standalone/public
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.id = "report-standalone";
+    style.textContent = `
+      aside[class*="fixed left-0"], .hidden.lg\\:block.w-64, button[data-quick-add-fab], main.ml-64 { display: none !important; }
+      body > div:first-child > main { margin-left: 0 !important; padding: 0 !important; }
+      html, body { overflow-x: hidden; }
+    `;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
+
   useEffect(() => {
     fetch(`/api/audit/${id}`)
       .then(r => r.json())
