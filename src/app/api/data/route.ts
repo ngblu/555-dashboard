@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { kv } from "@vercel/kv";
+import { put, list } from "@vercel/blob";
 
-// Single-user command center: the whole dashboard is one JSON blob.
-const STORE_KEY = "555-cmd-store-v1";
+const STORE_PREFIX = "555-cmd-store-";
 
 export const dynamic = "force-dynamic";
 
-// Is KV wired up? (env vars injected by the Vercel KV/Upstash integration)
-function kvConfigured() {
-  return Boolean(
-    process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
-  );
+function blobConfigured() {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
 
 const EMPTY = {
@@ -23,15 +19,19 @@ const EMPTY = {
 };
 
 export async function GET() {
-  if (!kvConfigured()) {
-    // KV not provisioned yet — tell the client to stay in local-only mode.
+  if (!blobConfigured()) {
     return NextResponse.json(
       { configured: false, data: null },
       { status: 200 }
     );
   }
   try {
-    const data = (await kv.get(STORE_KEY)) ?? EMPTY;
+    const { blobs } = await list({ prefix: STORE_PREFIX, limit: 1 });
+    if (blobs.length === 0) {
+      return NextResponse.json({ configured: true, data: EMPTY }, { status: 200 });
+    }
+    const res = await fetch(blobs[0].url);
+    const data = await res.json();
     return NextResponse.json({ configured: true, data }, { status: 200 });
   } catch (e) {
     return NextResponse.json(
@@ -42,7 +42,7 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  if (!kvConfigured()) {
+  if (!blobConfigured()) {
     return NextResponse.json(
       { configured: false, saved: false },
       { status: 200 }
@@ -50,7 +50,6 @@ export async function PUT(req: NextRequest) {
   }
   try {
     const body = await req.json();
-    // Basic shape guard — only persist known collections.
     const data = {
       leads: body.leads ?? [],
       audits: body.audits ?? [],
@@ -59,7 +58,11 @@ export async function PUT(req: NextRequest) {
       tasks: body.tasks ?? [],
       revenue: body.revenue ?? [],
     };
-    await kv.set(STORE_KEY, data);
+    const key = STORE_PREFIX + Date.now() + ".json";
+    await put(key, JSON.stringify(data), {
+      access: "public",
+      contentType: "application/json",
+    });
     return NextResponse.json({ configured: true, saved: true }, { status: 200 });
   } catch (e) {
     return NextResponse.json(

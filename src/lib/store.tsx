@@ -95,8 +95,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [syncStatus, setSyncStatus] =
     useState<DataContextValue["syncStatus"]>("loading");
 
-  // tracks whether the cloud (KV) is the source of truth
-  const kvEnabledRef = useRef(false);
+  // tracks whether the cloud (Blob) is the source of truth
+  const cloudEnabledRef = useRef(false);
   // debounce timer for cloud saves
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // skip the very first persist (right after we load) so we don't echo back
@@ -123,22 +123,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
         if (json.configured && json.data) {
           // cloud wins — it's shared across devices
-          kvEnabledRef.current = true;
+          cloudEnabledRef.current = true;
           skipNextSaveRef.current = true;
           setStore({ ...EMPTY, ...json.data });
           setSyncStatus("synced");
         } else if (json.configured) {
           // KV is on but empty — we'll seed it on first save
-          kvEnabledRef.current = true;
+          cloudEnabledRef.current = true;
           setSyncStatus("synced");
         } else {
           // KV not provisioned yet — stay browser-only
-          kvEnabledRef.current = false;
+          cloudEnabledRef.current = false;
           setSyncStatus("local");
         }
       } catch {
         // network/API error — fall back to local-only
-        kvEnabledRef.current = false;
+        cloudEnabledRef.current = false;
         setSyncStatus("offline");
       } finally {
         if (!cancelled) setHydrated(true);
@@ -167,7 +167,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!kvEnabledRef.current) return; // local-only mode
+    if (!cloudEnabledRef.current) return; // local-only mode
 
     // debounce cloud writes so rapid edits collapse into one request
     setSyncStatus("saving");
