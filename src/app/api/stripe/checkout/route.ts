@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-06-16.acacia" as any,
-});
+let _stripe: any = null;
+function getStripe() {
+  if (!_stripe) {
+    const Stripe = require("stripe");
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+      apiVersion: "2025-06-16.acacia",
+    });
+  }
+  return _stripe;
+}
 
 export async function POST(req: NextRequest) {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json(
+      { error: "Stripe not configured — add STRIPE_SECRET_KEY to Vercel env" },
+      { status: 503 }
+    );
+  }
+
   try {
     const { projectId, clientName, amount, type } = await req.json();
 
@@ -14,6 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     const origin = req.headers.get("origin") || "https://555-dashboard.vercel.app";
+    const stripe = getStripe();
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -26,7 +40,7 @@ export async function POST(req: NextRequest) {
               name: `555 Digital — ${type === "deposit" ? "Deposit" : "Final Payment"}`,
               description: clientName || "Website project",
             },
-            unit_amount: Math.round(amount * 100), // Stripe uses cents
+            unit_amount: Math.round(amount * 100),
           },
           quantity: 1,
         },

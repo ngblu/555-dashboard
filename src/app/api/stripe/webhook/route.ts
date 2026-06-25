@@ -1,17 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-06-16.acacia" as any,
-});
-
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
+let _stripe: any = null;
+function getStripe() {
+  if (!_stripe) {
+    const Stripe = require("stripe");
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+      apiVersion: "2025-06-16.acacia",
+    });
+  }
+  return _stripe;
+}
 
 export async function POST(req: NextRequest) {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
+  }
+
   const body = await req.text();
   const sig = req.headers.get("stripe-signature") || "";
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
+  const stripe = getStripe();
 
-  let event: Stripe.Event;
+  let event: any;
   try {
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (e: any) {
@@ -20,16 +30,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
+    const session = event.data.object;
     const { projectId, type, amount } = session.metadata || {};
 
     if (projectId && type && amount) {
       console.log(
         `Payment received: ${type} of $${amount} for project ${projectId}`
       );
-
-      // The client store will sync this on next poll
-      // We return the data so the client can also handle it via success_url redirect
       return NextResponse.json({
         received: true,
         projectId,
