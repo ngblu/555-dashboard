@@ -89,7 +89,7 @@ export default function Sidebar() {
         <Link href="/terms" onClick={close} className="hover:text-text-secondary transition-colors">
           Terms
         </Link>
-        <span className="opacity-40 font-mono text-[10px]">555.CMD v1.0</span>
+        <span className="opacity-40 font-mono text-[10px]">v1.0 ・ 五五五</span>
       </div>
     </div>
   );
@@ -120,16 +120,20 @@ export default function Sidebar() {
           lg:translate-x-0
           ${open ? "translate-x-0" : "-translate-x-full"}
         `}
+        style={{
+          backgroundImage: `radial-gradient(ellipse at 20% 50%, rgba(0,212,255,0.02) 0%, transparent 60%)`,
+        }}
       >
         {/* Logo + close */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-border">
           <Link href="/" onClick={close} className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center relative overflow-hidden">
               <span className="text-primary font-extrabold text-sm">5</span>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,_rgba(0,212,255,0.15)_0%,_transparent_70%)]" />
             </div>
             <div>
               <span className="text-primary font-bold text-sm">555</span>
-              <span className="text-text-secondary text-xs ml-1">Command Center</span>
+              <span className="text-text-secondary text-[10px] ml-1">コマンド</span>
             </div>
           </Link>
           <button

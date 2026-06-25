@@ -6,6 +6,7 @@ import PWARegister from "@/components/layout/PWARegister";
 import { DataProvider } from "@/lib/store";
 import QuickAdd from "@/components/ui/QuickAdd";
 import CommandPalette from "@/components/ui/CommandPalette";
+import KoiPond from "@/components/ui/KoiPond";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -31,6 +32,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.svg" />
       </head>
       <body className="min-h-full bg-background text-text-primary">
+        <KoiPond />
         <DataProvider>
           <Sidebar />
           <main className="ml-0 lg:ml-64 min-h-screen p-3 md:p-6 transition-all">
