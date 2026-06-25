@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Mail, Plus, X, Send, CheckCircle2, AlertCircle, Eye, Reply, Clock, ExternalLink } from "lucide-react";
 import { useData } from "@/lib/store";
 
@@ -8,6 +8,20 @@ export default function EmailsPage() {
   const { emailLogs, setEmailLogs, logEmail, leads, clients } = useData();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ leadId: "", clientId: "", to: "", subject: "", status: "sent" as const, notes: "" });
+
+  // Handle prefill from GeneratePitch
+  useEffect(() => {
+    const search = new URLSearchParams(window.location.search);
+    const prefill = search.get("prefill");
+    if (prefill) {
+      try {
+        const data = JSON.parse(decodeURIComponent(prefill));
+        setForm(f => ({ ...f, to: data.to || "", subject: data.subject || data.body?.split("\n")[0]?.replace("Subject: ", "") || "" }));
+        setShowForm(true);
+        window.history.replaceState({}, "", "/emails");
+      } catch {}
+    }
+  }, []);
 
   const handleSend = () => {
     if (!form.subject || !form.to) return;

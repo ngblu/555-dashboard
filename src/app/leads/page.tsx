@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Crosshair, Plus, X, ArrowRight, UserCheck, Rocket, ChevronRight } from "lucide-react";
 import { useData } from "@/lib/store";
 import type { LeadStatus } from "@/lib/types";
+import GeneratePitchButton from "@/components/ui/GeneratePitch";
 
 const statusFlow: LeadStatus[] = ["found", "audited", "emailed", "replied", "converted"];
 
@@ -283,6 +284,19 @@ export default function LeadsPage() {
                   )}
                 </div>
               </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                  <GeneratePitchButton
+                    lead={{
+                      businessName: lead.businessName,
+                      website: lead.website,
+                      contactName: lead.contactEmail || undefined,
+                      contactEmail: lead.contactEmail || undefined,
+                      auditScores: lead.audit ? { performance: lead.audit.performance, seo: lead.audit.seo, accessibility: lead.audit.accessibility } : null,
+                      issues: lead.issues || [],
+                      industry: lead.industry || undefined,
+                    }}
+                  />
+                </div>
             </div>
           );
         })}
