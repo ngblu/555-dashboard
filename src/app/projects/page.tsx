@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FolderKanban, Plus, X, UserCheck, CreditCard } from "lucide-react";
 import { useData } from "@/lib/store";
+import InlineEdit from "@/components/ui/InlineEdit";
 
 export default function ProjectsPage() {
   const { projects, setProjects, createProjectForClient, clients, setClients } = useData();
@@ -68,7 +69,7 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Projects</h1>
@@ -109,7 +110,14 @@ export default function ProjectsPage() {
             </div>
             <div className="flex items-center gap-3 mb-3 text-xs text-text-muted">
               {p.dueDate && <span>Due: {p.dueDate}</span>}
-              <span className="text-accent font-medium">${(p.value || 0).toLocaleString()}</span>
+              <InlineEdit
+                value={p.value || 0}
+                onChange={(val) =>
+                  setProjects((prev) =>
+                    prev.map((x) => (x.id === p.id ? { ...x, value: val } : x))
+                  )
+                }
+              />
             </div>
             <div className="w-full h-1.5 bg-surface rounded-full mb-3">
               <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${p.progress || 0}%` }} />

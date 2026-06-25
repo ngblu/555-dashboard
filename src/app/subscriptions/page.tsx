@@ -45,7 +45,7 @@ export default function SubscriptionsPage() {
     const sub: Sub = {
       id: "sub_" + Date.now(),
       clientId: form.clientId,
-      clientName: client ? (client as { name: string }).name : "Unknown",
+      clientName: client ? ((client as { business: string; name: string }).business || (client as { name: string }).name) : "Unknown",
       plan: form.plan,
       amount: form.amount,
       interval: form.interval,
@@ -66,7 +66,7 @@ export default function SubscriptionsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">Subscriptions</h1><p className="text-text-secondary text-sm mt-1">Monthly maintenance & retainers</p></div>
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary/90"><Plus className="w-4 h-4" /> Add</button>
@@ -87,7 +87,7 @@ export default function SubscriptionsPage() {
           <div className="grid grid-cols-2 gap-3">
             <select className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary" value={form.clientId} onChange={e => setForm({ ...form, clientId: e.target.value })}>
               <option value="">Select client...</option>
-              {clients.map((c: { id: string; name: string }) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {clients.map((c: { id: string; business: string; name: string }) => <option key={c.id} value={c.id}>{c.business || c.name || "Unnamed"}</option>)}
             </select>
             <select className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary" value={form.plan} onChange={e => {
               const p = PLANS.find(x => x.name === e.target.value);

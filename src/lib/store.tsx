@@ -23,6 +23,7 @@ import type {
   Project,
   Task,
   Revenue,
+  Notification,
   AuditMetrics,
 } from "./types";
 
@@ -35,6 +36,7 @@ interface StoreShape {
   projects: Project[];
   tasks: Task[];
   revenue: Revenue[];
+  notifications: Notification[];
 }
 
 const EMPTY: StoreShape = {
@@ -44,6 +46,7 @@ const EMPTY: StoreShape = {
   projects: [],
   tasks: [],
   revenue: [],
+  notifications: [],
 };
 
 const uid = (p: string) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -60,6 +63,12 @@ interface DataContextValue extends StoreShape {
   setProjects: (v: Project[] | ((p: Project[]) => Project[])) => void;
   setTasks: (v: Task[] | ((p: Task[]) => Task[])) => void;
   setRevenue: (v: Revenue[] | ((p: Revenue[]) => Revenue[])) => void;
+  setNotifications: (v: Notification[] | ((p: Notification[]) => Notification[])) => void;
+
+  // ---- notification helpers ----
+  addNotification: (message: string, type?: Notification["type"], link?: string) => void;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
 
   // ---- conversion actions ----
   /** Attach a fresh audit's metrics onto an existing lead and bump its status. */
@@ -216,6 +225,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const setProjects = useCallback(sliceSetter("projects"), []);
   const setTasks = useCallback(sliceSetter("tasks"), []);
   const setRevenue = useCallback(sliceSetter("revenue"), []);
+  const setNotifications = useCallback(sliceSetter("notifications"), []);
+
+  // ---- notification helpers ----
+  const addNotification = useCallback(
+    (message: string, type: Notification["type"] = "info", link?: string) => {
+      const notif: Notification = {
+        id: uid("n_"),
+        message,
+        type,
+        read: false,
+        createdAt: new Date().toISOString(),
+        link,
+      };
+      setStore((prev) => ({ ...prev, notifications: [notif, ...prev.notifications].slice(0, 100) }));
+    },
+    []
+  );
+
+  const markNotificationRead = useCallback((id: string) => {
+    setStore((prev) => ({
+      ...prev,
+      notifications: prev.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    }));
+  }, []);
+
+  const markAllNotificationsRead = useCallback(() => {
+    setStore((prev) => ({
+      ...prev,
+      notifications: prev.notifications.map((n) => ({ ...n, read: true })),
+    }));
+  }, []);
 
   // ---- conversion actions ----
 
@@ -377,6 +417,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setProjects,
     setTasks,
     setRevenue,
+    setNotifications,
+    addNotification,
+    markNotificationRead,
+    markAllNotificationsRead,
     attachAuditToLead,
     leadFromAudit,
     convertLeadToClient,

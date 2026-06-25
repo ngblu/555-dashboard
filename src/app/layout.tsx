@@ -4,6 +4,8 @@ import "./globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import PWARegister from "@/components/layout/PWARegister";
 import { DataProvider } from "@/lib/store";
+import QuickAdd from "@/components/ui/QuickAdd";
+import CommandPalette from "@/components/ui/CommandPalette";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -31,9 +33,11 @@ export default function RootLayout({
       <body className="min-h-full bg-background text-text-primary">
         <DataProvider>
           <Sidebar />
-          <main className="ml-56 min-h-screen">
+          <main className="ml-56 min-h-screen p-6">
             {children}
           </main>
+          <QuickAdd />
+          <CommandPalette />
           <PWARegister />
         </DataProvider>
       </body>
