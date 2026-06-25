@@ -13,6 +13,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import type {
@@ -49,6 +50,8 @@ const uid = (p: string) => p + Date.now().toString(36) + Math.random().toString(
 
 interface DataContextValue extends StoreShape {
   hydrated: boolean;
+  /** "local" = KV not configured (browser-only); "synced" = saved to cloud; "saving"; "offline" = save failed. */
+  syncStatus: "loading" | "local" | "synced" | "saving" | "offline";
 
   // setters (functional updates supported)
   setLeads: (v: Lead[] | ((p: Lead[]) => Lead[])) => void;
@@ -89,36 +92,107 @@ const DataContext = createContext<DataContextValue | null>(null);
 export function DataProvider({ children }: { children: ReactNode }) {
   const [store, setStore] = useState<StoreShape>(EMPTY);
   const [hydrated, setHydrated] = useState(false);
+  const [syncStatus, setSyncStatus] =
+    useState<DataContextValue["syncStatus"]>("loading");
 
-  // hydrate from localStorage once on mount
+  // tracks whether the cloud (KV) is the source of truth
+  const kvEnabledRef = useRef(false);
+  // debounce timer for cloud saves
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // skip the very first persist (right after we load) so we don't echo back
+  const skipNextSaveRef = useRef(true);
+
+  // ---- initial load: localStorage first (instant), then KV (authoritative) ----
   useEffect(() => {
+    let cancelled = false;
+
+    // 1. paint immediately from local cache
     try {
       const raw = window.localStorage.getItem(KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setStore({ ...EMPTY, ...parsed });
-      }
+      if (raw) setStore({ ...EMPTY, ...JSON.parse(raw) });
     } catch (e) {
-      console.error("store hydrate failed", e);
+      console.error("local cache read failed", e);
     }
-    setHydrated(true);
+
+    // 2. then reconcile with the cloud
+    (async () => {
+      try {
+        const res = await fetch("/api/data", { cache: "no-store" });
+        const json = await res.json();
+        if (cancelled) return;
+
+        if (json.configured && json.data) {
+          // cloud wins — it's shared across devices
+          kvEnabledRef.current = true;
+          skipNextSaveRef.current = true;
+          setStore({ ...EMPTY, ...json.data });
+          setSyncStatus("synced");
+        } else if (json.configured) {
+          // KV is on but empty — we'll seed it on first save
+          kvEnabledRef.current = true;
+          setSyncStatus("synced");
+        } else {
+          // KV not provisioned yet — stay browser-only
+          kvEnabledRef.current = false;
+          setSyncStatus("local");
+        }
+      } catch {
+        // network/API error — fall back to local-only
+        kvEnabledRef.current = false;
+        setSyncStatus("offline");
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // persist on every change (after hydration so we don't clobber with EMPTY)
+  // ---- persist on every change ----
   useEffect(() => {
     if (!hydrated) return;
+
+    // always keep the local cache fresh (instant + offline resilience)
     try {
       window.localStorage.setItem(KEY, JSON.stringify(store));
     } catch (e) {
-      console.error("store persist failed", e);
+      console.error("local cache write failed", e);
     }
+
+    // the load() reconcile sets state once; don't bounce that back to the server
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      return;
+    }
+
+    if (!kvEnabledRef.current) return; // local-only mode
+
+    // debounce cloud writes so rapid edits collapse into one request
+    setSyncStatus("saving");
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/data", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(store),
+        });
+        const json = await res.json().catch(() => ({}));
+        setSyncStatus(res.ok && json.saved ? "synced" : "offline");
+      } catch {
+        setSyncStatus("offline");
+      }
+    }, 700);
   }, [store, hydrated]);
 
-  // sync across tabs/windows
+  // sync across tabs/windows on the same device (instant, no server round-trip)
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === KEY && e.newValue) {
         try {
+          skipNextSaveRef.current = true;
           setStore({ ...EMPTY, ...JSON.parse(e.newValue) });
         } catch {}
       }
@@ -296,6 +370,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const value: DataContextValue = {
     ...store,
     hydrated,
+    syncStatus,
     setLeads,
     setAudits,
     setClients,

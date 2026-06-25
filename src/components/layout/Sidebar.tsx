@@ -10,7 +10,12 @@ import {
   CheckSquare,
   Crosshair,
   FileSearch,
+  Cloud,
+  CloudOff,
+  Loader2,
+  HardDrive,
 } from "lucide-react";
+import { useData } from "@/lib/store";
 
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Overview" },
@@ -24,6 +29,16 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { syncStatus } = useData();
+
+  const sync = {
+    loading: { icon: Loader2, text: "Connecting…", cls: "text-text-muted", spin: true },
+    synced: { icon: Cloud, text: "Synced to cloud", cls: "text-accent", spin: false },
+    saving: { icon: Loader2, text: "Saving…", cls: "text-primary", spin: true },
+    local: { icon: HardDrive, text: "This device only", cls: "text-warning", spin: false },
+    offline: { icon: CloudOff, text: "Offline — cached", cls: "text-danger", spin: false },
+  }[syncStatus];
+  const SyncIcon = sync.icon;
 
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-16 lg:w-64 bg-surface border-r border-border z-40 flex flex-col">
@@ -70,13 +85,18 @@ export default function Sidebar() {
 
       {/* Bottom status */}
       <div className="border-t border-border p-4 hidden lg:block">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-          <span className="text-text-muted text-xs">System Online</span>
+        <div className={`flex items-center gap-2 ${sync.cls}`}>
+          <SyncIcon className={`w-3.5 h-3.5 ${sync.spin ? "animate-spin" : ""}`} />
+          <span className="text-xs">{sync.text}</span>
         </div>
         <p className="text-text-muted text-[10px] mt-1 font-mono opacity-60">
           555.CMD v1.0
         </p>
+      </div>
+
+      {/* Collapsed status dot (mobile/narrow) */}
+      <div className="border-t border-border p-4 lg:hidden flex justify-center">
+        <SyncIcon className={`w-4 h-4 ${sync.cls} ${sync.spin ? "animate-spin" : ""}`} />
       </div>
     </aside>
   );
