@@ -19,6 +19,7 @@
 
   --animate-pulse-glow: pulseGlow 2s ease-in-out infinite;
   --animate-slide-in: slideIn 0.3s ease-out;
+  --animate-slide-in-right: slideInRight 0.3s ease-out;
 
   @keyframes pulseGlow {
     0%, 100% { box-shadow: 0 0 5px rgba(0,212,255,0.1); }
@@ -27,6 +28,10 @@
   @keyframes slideIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(100%); }
+    to { opacity: 1; transform: translateX(0); }
   }
 }
 
