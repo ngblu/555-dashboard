@@ -120,6 +120,19 @@ export interface Revenue {
   status: "pending" | "paid";
 }
 
+export interface Subscription {
+  id: string;
+  clientId: string;
+  clientName: string;
+  projectId?: string;
+  plan: string;
+  amount: number;
+  interval: "monthly" | "quarterly" | "annual";
+  status: "active" | "paused" | "cancelled";
+  startDate: string;
+  nextPayment: string;
+}
+
 export interface Notification {
   id: string;
   message: string;

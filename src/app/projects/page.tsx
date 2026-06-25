@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FolderKanban, Plus, X, UserCheck, CreditCard } from "lucide-react";
+import { FolderKanban, Plus, X, UserCheck, CreditCard, Repeat } from "lucide-react";
 import { useData } from "@/lib/store";
 import InlineEdit from "@/components/ui/InlineEdit";
 
@@ -30,6 +30,21 @@ export default function ProjectsPage() {
   };
 
   const statuses = ["not-started", "in-progress", "review", "completed"];
+
+  const convertToSubscription = (p: { id: string; name: string; client?: string; value: number; clientId?: string }) => {
+    // Navigate to subscriptions page with prefilled data via window
+    const params = new URLSearchParams();
+    if (p.clientId) params.set("clientId", p.clientId);
+    params.set("clientName", p.client || p.name);
+    params.set("projectId", p.id);
+    params.set("amount", String(Math.round(p.value * 0.1))); // 10% monthly default
+    window.location.href = "/subscriptions?prefill=" + encodeURIComponent(JSON.stringify({
+      clientId: p.clientId || "",
+      clientName: p.client || p.name,
+      projectId: p.id,
+      amount: Math.round(p.value * 0.1)
+    }));
+  };
 
   const handleStripe = async (p: { id: string; name: string; value: number }) => {
     if (!p.value) return alert("Set a project value first");
@@ -133,6 +148,9 @@ export default function ProjectsPage() {
               <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => handleStripe(p as { id: string; name: string; value: number })} className="flex items-center gap-1 text-xs px-2 py-1 bg-accent/10 text-accent rounded hover:bg-accent/20">
                   <CreditCard className="w-3 h-3" /> 50% Deposit
+                </button>
+                <button onClick={() => convertToSubscription(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-warning/10 text-warning rounded hover:bg-warning/20">
+                  <Repeat className="w-3 h-3" /> To Sub
                 </button>
                 <button onClick={() => convertToClient(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-secondary/10 text-secondary rounded hover:bg-secondary/20">
                   <UserCheck className="w-3 h-3" /> To Client

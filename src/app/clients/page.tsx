@@ -10,6 +10,7 @@ import {
   FolderPlus,
   CheckCircle2,
   Zap,
+  Repeat,
 } from "lucide-react";
 import { useData } from "@/lib/store";
 import type { ClientStatus } from "@/lib/types";
@@ -159,7 +160,11 @@ export default function ClientsPage() {
                 <div className="flex items-center gap-4 mt-2 text-text-muted text-xs">
                   {c.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {c.email}</span>}
                   {c.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {c.phone}</span>}
-                  {c.website && <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> {c.website}</span>}
+                  {c.website && (
+                    <a href={c.website.startsWith("http") ? c.website : `https://${c.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary transition-colors">
+                      <Globe className="w-3 h-3" /> {c.website}
+                    </a>
+                  )}
                 </div>
                 {c.notes && <p className="text-text-muted text-xs mt-2 whitespace-pre-line">{c.notes}</p>}
 
@@ -169,6 +174,17 @@ export default function ClientsPage() {
                     className="text-xs px-3 py-1.5 rounded-lg border border-secondary/30 text-secondary bg-secondary/5 hover:bg-secondary/15 transition-all flex items-center gap-1.5"
                   >
                     <FolderPlus className="w-3.5 h-3.5" /> Create Project
+                  </button>
+                  <button
+                    onClick={() => {
+                      const params = new URLSearchParams();
+                      params.set("clientId", c.id);
+                      params.set("clientName", c.business);
+                      window.location.href = "/subscriptions?prefill=" + encodeURIComponent(JSON.stringify({ clientId: c.id, clientName: c.business, amount: Math.round(c.value * 0.1) }));
+                    }}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-warning/30 text-warning bg-warning/5 hover:bg-warning/15 transition-all flex items-center gap-1.5"
+                  >
+                    <Repeat className="w-3.5 h-3.5" /> Start Subscription
                   </button>
                 </div>
               </div>

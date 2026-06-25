@@ -23,6 +23,7 @@ import type {
   Project,
   Task,
   Revenue,
+  Subscription,
   Notification,
   AuditMetrics,
 } from "./types";
@@ -36,6 +37,7 @@ interface StoreShape {
   projects: Project[];
   tasks: Task[];
   revenue: Revenue[];
+  subscriptions: Subscription[];
   notifications: Notification[];
 }
 
@@ -46,6 +48,7 @@ const EMPTY: StoreShape = {
   projects: [],
   tasks: [],
   revenue: [],
+  subscriptions: [],
   notifications: [],
 };
 
@@ -64,6 +67,7 @@ interface DataContextValue extends StoreShape {
   setTasks: (v: Task[] | ((p: Task[]) => Task[])) => void;
   setRevenue: (v: Revenue[] | ((p: Revenue[]) => Revenue[])) => void;
   setNotifications: (v: Notification[] | ((p: Notification[]) => Notification[])) => void;
+  setSubscriptions: (v: Subscription[] | ((p: Subscription[]) => Subscription[])) => void;
 
   // ---- notification helpers ----
   addNotification: (message: string, type?: Notification["type"], link?: string) => void;
@@ -226,6 +230,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const setTasks = useCallback(sliceSetter("tasks"), []);
   const setRevenue = useCallback(sliceSetter("revenue"), []);
   const setNotifications = useCallback(sliceSetter("notifications"), []);
+  const setSubscriptions = useCallback(sliceSetter("subscriptions"), []);
 
   // ---- notification helpers ----
   const addNotification = useCallback(
@@ -417,6 +422,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setProjects,
     setTasks,
     setRevenue,
+    setSubscriptions,
     setNotifications,
     addNotification,
     markNotificationRead,
