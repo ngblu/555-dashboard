@@ -542,7 +542,15 @@ Audit by 555 Digital · https://555digital.dev
             {savedAudits.map((a) => (
               <div
                 key={a.id}
-                className="bg-surface border border-border rounded-xl p-4 flex items-center justify-between"
+                onClick={() => {
+                  setUrl(a.url || "");
+                  setBusinessName(a.businessName || "");
+                  setResult(a.result);
+                  setManualNotes(a.manualNotes || "");
+                  setGoogleInfo(a.googleInfo || "");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="bg-surface border border-border rounded-xl p-4 flex items-center justify-between cursor-pointer hover:border-primary/30 transition-all group"
               >
                 <div>
                   <h3 className="text-text-primary font-medium">
@@ -582,7 +590,8 @@ Audit by 555 Digital · https://555digital.dev
                       </div>
                     </div>
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         const reportUrl = `${window.location.origin}/audit/report/${a.id}`;
                         navigator.clipboard.writeText(reportUrl);
                         alert("Report link copied!\n\n" + reportUrl);
