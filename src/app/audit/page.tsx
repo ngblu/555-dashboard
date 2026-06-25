@@ -240,7 +240,7 @@ function AuditPageInner() {
 
   const exportAudit = () => {
     if (!result) return;
-    const text = `WEBSITE AUDIT REPORT — 555 Digital
+    const text = `WEBSITE AUDIT REPORT · 555 Digital
 ==========================================
 Business: ${businessName || "N/A"}
 URL: ${result.url}
@@ -248,14 +248,14 @@ Date: ${new Date(result.fetchedAt).toLocaleDateString()}
 Strategy: ${result.strategy}
 
 SCORES
-------
+---
 Performance: ${result.performance}/100
 Accessibility: ${result.accessibility}/100
 Best Practices: ${result.bestPractices}/100
 SEO: ${result.seo}/100
 
 CORE WEB VITALS
-------
+---
 First Contentful Paint: ${result.fcp}
 Largest Contentful Paint: ${result.lcp}
 Cumulative Layout Shift: ${result.cls}
@@ -264,18 +264,18 @@ Speed Index: ${result.speedIndex}
 Time to First Byte: ${result.ttfb}
 
 ISSUES FOUND (${result.issues.length})
-------
+---
 ${result.issues.map((i) => "• " + i).join("\n")}
 
 OPPORTUNITIES
-------
+---
 ${result.opportunities.map((o) => "• " + o).join("\n")}
 
-${manualNotes ? "NOTES\n------\n" + manualNotes : ""}
-${googleInfo ? "\nGOOGLE BUSINESS INFO\n------\n" + googleInfo : ""}
+${manualNotes ? "NOTES\n---\n" + manualNotes : ""}
+${googleInfo ? "\nGOOGLE BUSINESS INFO\n---\n" + googleInfo : ""}
 
 ==========================================
-Audit by 555 Digital — https://555digital.dev
+Audit by 555 Digital · https://555digital.dev
 `;
     const blob = new Blob([text], { type: "text/plain" });
     const a = document.createElement("a");
@@ -347,7 +347,7 @@ Audit by 555 Digital — https://555digital.dev
           </label>
           <textarea
             rows={3}
-            placeholder="Paste their Google Business info here — name, address, rating, hours, phone..."
+            placeholder="Paste their Google Business info here · name, address, rating, hours, phone..."
             className={`${inputCls} resize-none`}
             value={googleInfo}
             onChange={(e) => setGoogleInfo(e.target.value)}
@@ -429,7 +429,7 @@ Audit by 555 Digital — https://555digital.dev
                   Audit Results
                 </h2>
                 <p className="text-text-muted text-xs mt-1">
-                  {result.url} — {result.strategy} — {new Date(result.fetchedAt).toLocaleString()}
+                  {result.url} · {result.strategy} · {new Date(result.fetchedAt).toLocaleString()}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -523,7 +523,7 @@ Audit by 555 Digital — https://555digital.dev
             </h2>
             <textarea
               rows={4}
-              placeholder="Add your own observations — design issues, missing features, what you'd fix..."
+              placeholder="Add your own observations · design issues, missing features, what you'd fix..."
               className={`${inputCls} resize-none`}
               value={manualNotes}
               onChange={(e) => setManualNotes(e.target.value)}
@@ -549,7 +549,7 @@ Audit by 555 Digital — https://555digital.dev
                     {a.businessName || a.url}
                   </h3>
                   <p className="text-text-muted text-xs">
-                    {a.url} —{" "}
+                    {a.url} ·{" "}
                     {new Date(a.createdAt).toLocaleDateString()}
                   </p>
                 </div>

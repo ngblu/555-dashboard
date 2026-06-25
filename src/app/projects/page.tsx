@@ -93,7 +93,7 @@ export default function ProjectsPage() {
           <FolderKanban className="w-6 h-6 text-secondary" /> Projects
         </h1>
         <p className="text-text-muted text-sm mt-1">
-          {projects.length} total —{" "}
+          {projects.length} total ·{" "}
           {projects.filter((p) => p.status === "in-progress").length} active
         </p>
       </div>
@@ -115,7 +115,7 @@ export default function ProjectsPage() {
               <div>
                 <h3 className="text-text-primary font-semibold text-lg">{p.name}</h3>
                 <p className="text-text-muted text-sm">
-                  {p.client || "—"} — {p.tier}
+                  {p.client || "–"} — {p.tier}
                 </p>
               </div>
               <div className="text-right">

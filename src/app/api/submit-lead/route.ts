@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             from: "555 Digital <onboarding@resend.dev>",
             to: notifyEmail,
-            subject: `New Lead: ${name} — ${website || "No website"}`,
+            subject: `New Lead: ${name} · ${website || "No website"}`,
             html: `<h2>New Audit Request</h2>
 <p><strong>Name:</strong> ${name}</p>
 <p><strong>Email:</strong> ${email}</p>

@@ -46,7 +46,7 @@ export default function TasksPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2"><CheckSquare className="w-6 h-6 text-primary" /> Tasks</h1>
-        <p className="text-text-muted text-sm mt-1">{active.length} active — {done.length} completed</p>
+        <p className="text-text-muted text-sm mt-1">{active.length} active · {done.length} completed</p>
       </div>
 
       {/* Add task */}

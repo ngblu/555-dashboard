@@ -121,8 +121,8 @@ export default function RevenuePage() {
             {revenue.map((p) => (
               <div key={p.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                 <div>
-                  <p className="text-text-primary text-sm font-medium">{p.clientName || "—"}</p>
-                  <p className="text-text-muted text-xs">{p.type} — {p.date}</p>
+                  <p className="text-text-primary text-sm font-medium">{p.clientName || "–"}</p>
+                  <p className="text-text-muted text-xs">{p.type} · {p.date}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <p className="text-text-primary font-bold">${p.amount.toLocaleString()}</p>
