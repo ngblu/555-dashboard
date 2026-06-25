@@ -49,3 +49,28 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: #00D4FF; }
 
 ::selection { background: rgba(0,212,255,0.3); color: #E8E8F0; }
+
+/* Mobile improvements */
+@media (max-width: 1023px) {
+  button, a[role="button"], [onclick] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  input, select, textarea {
+    font-size: 16px !important; /* prevent iOS zoom */
+  }
+  .mobile-stack {
+    flex-direction: column !important;
+  }
+  .mobile-full {
+    width: 100% !important;
+  }
+  /* Fix grid overflow */
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+  /* Scrollable tables */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}

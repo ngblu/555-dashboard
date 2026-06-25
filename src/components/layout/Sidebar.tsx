@@ -97,10 +97,10 @@ export default function Sidebar() {
       {/* Hamburger button (mobile only) */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed top-4 left-4 z-50 lg:hidden w-9 h-9 rounded-lg bg-surface border border-border flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
+        className="fixed top-3 left-3 z-50 lg:hidden w-11 h-11 rounded-lg bg-surface border border-border flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors shadow-lg"
         aria-label="Open menu"
       >
-        <Menu className="w-5 h-5" />
+        <Menu className="w-6 h-6" />
       </button>
 
       {/* Backdrop overlay (mobile) */}
@@ -132,7 +132,7 @@ export default function Sidebar() {
           </Link>
           <button
             onClick={close}
-            className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
+            className="lg:hidden w-10 h-10 rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
             aria-label="Close menu"
           >
             <X className="w-5 h-5" />
