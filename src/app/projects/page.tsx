@@ -70,7 +70,9 @@ export default function ProjectsPage() {
   const removeProject = (id: string) =>
     setProjects((prev) => prev.filter((p) => p.id !== id));
 
-  const [payLoading, setPayLoading] = useState<string | null>(null); // projectId being processed
+  const [payLoading, setPayLoading] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string | null>(null); // projectId being edited
+  const [editAmount, setEditAmount] = useState("");
 
   const sendStripeInvoice = async (
     projectId: string,
@@ -101,6 +103,21 @@ export default function ProjectsPage() {
       flash("Failed to connect to Stripe");
     }
     setPayLoading(null);
+  };
+
+  const startEditValue = (id: string, current: number) => {
+    setEditingValue(id);
+    setEditAmount(current > 0 ? String(current) : "");
+  };
+
+  const saveValue = (id: string) => {
+    const val = Number(editAmount);
+    if (!isNaN(val) && val > 0) {
+      setProjects((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, value: val } : p))
+      );
+    }
+    setEditingValue(null);
   };
 
   return (
@@ -148,7 +165,34 @@ export default function ProjectsPage() {
                 >
                   {statusLabels[p.status]}
                 </button>
-                <p className="text-accent font-bold mt-1">${p.value.toLocaleString()}</p>
+                {editingValue === p.id ? (
+                  <div className="mt-1">
+                    <div className="flex items-center gap-1">
+                      <span className="text-accent font-bold">$</span>
+                      <input
+                        autoFocus
+                        type="number"
+                        min="1"
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                        onBlur={() => saveValue(p.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveValue(p.id);
+                          if (e.key === "Escape") setEditingValue(null);
+                        }}
+                        className="w-24 bg-surface-2 border border-primary rounded px-2 py-1 text-accent font-bold text-sm focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => startEditValue(p.id, p.value)}
+                    className="text-accent font-bold mt-1 cursor-pointer hover:underline text-left"
+                    title="Click to set project value"
+                  >
+                    ${p.value.toLocaleString()}
+                  </button>
+                )}
               </div>
             </div>
 
