@@ -1,262 +1,116 @@
 "use client";
 
 import { useState } from "react";
-import { FolderKanban, Trash2, CheckCircle2, Loader2, ExternalLink } from "lucide-react";
-import { useData } from "@/lib/store";
-import type { ProjectStatus } from "@/lib/types";
-
-const statusLabels: Record<ProjectStatus, string> = {
-  "not-started": "Not Started",
-  "in-progress": "In Progress",
-  review: "Review",
-  completed: "Completed",
-};
-const statusColors: Record<ProjectStatus, string> = {
-  "not-started": "bg-text-muted/20 text-text-secondary",
-  "in-progress": "bg-primary/20 text-primary",
-  review: "bg-warning/20 text-warning",
-  completed: "bg-accent/20 text-accent",
-};
-const statusFlow: ProjectStatus[] = [
-  "not-started",
-  "in-progress",
-  "review",
-  "completed",
-];
+import { FolderKanban, Plus, X, UserCheck, CreditCard } from "lucide-react";
+import { useStore, Project } from "@/lib/useStore";
 
 export default function ProjectsPage() {
-  const { projects, setProjects, addRevenueForProject } = useData();
-  const [toast, setToast] = useState("");
+  const store = useStore();
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: "", client: "", dueDate: "", value: 0 });
 
-  const flash = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 2500);
+  const addProject = () => {
+    if (!form.name) return;
+    const project: Project = {
+      id: "p" + Date.now(),
+      name: form.name,
+      client: form.client,
+      status: "planning",
+      progress: 0,
+      value: form.value,
+      paid: 0,
+      dueDate: form.dueDate || new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
+    };
+    store.updateItem("projects", project.id, project as any);
+    setForm({ name: "", client: "", dueDate: "", value: 0 });
+    setShowForm(false);
   };
 
-  const cycleStatus = (id: string) => {
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
-        const idx = statusFlow.indexOf(p.status);
-        const next = statusFlow[(idx + 1) % statusFlow.length];
-        return {
-          ...p,
-          status: next,
-          progress: next === "completed" ? 100 : p.progress,
-        };
-      })
-    );
-  };
+  const statuses = ["planning", "building", "review", "launched"];
 
-  const setProgress = (id: string, progress: number) => {
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              progress,
-              status:
-                progress === 100
-                  ? "completed"
-                  : progress > 0 && p.status === "not-started"
-                  ? "in-progress"
-                  : p.status,
-            }
-          : p
-      )
-    );
-  };
-
-  const removeProject = (id: string) =>
-    setProjects((prev) => prev.filter((p) => p.id !== id));
-
-  const [payLoading, setPayLoading] = useState<string | null>(null);
-  const [editingValue, setEditingValue] = useState<string | null>(null); // projectId being edited
-  const [editAmount, setEditAmount] = useState("");
-
-  const sendStripeInvoice = async (
-    projectId: string,
-    clientName: string,
-    value: number,
-    type: "deposit" | "final"
-  ) => {
-    setPayLoading(projectId);
-    const amount = type === "deposit" ? Math.round(value / 2) : value;
+  const handleStripe = async (project: Project) => {
+    if (!project.value) return alert("Set a project value first.");
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, clientName, amount, type }),
+        body: JSON.stringify({ projectId: project.id, name: project.name, amount: Math.round(project.value * 0.5 * 100) }),
       });
       const data = await res.json();
-      if (data.url) {
-        // Log the pending revenue and open Stripe checkout
-        addRevenueForProject(projectId, amount, type, "pending");
-        window.open(data.url, "_blank");
-        flash(`Stripe checkout opened for ${type}`);
-      } else {
-        flash(data.error || "Failed to create checkout");
-        setPayLoading(null);
-        return; // don't log revenue if checkout failed
-      }
+      if (data.url) window.open(data.url, "_blank");
     } catch (e) {
-      flash("Failed to connect to Stripe");
+      alert("Failed to create checkout: " + String(e));
     }
-    setPayLoading(null);
-  };
-
-  const startEditValue = (id: string, current: number) => {
-    setEditingValue(id);
-    setEditAmount(current > 0 ? String(current) : "");
-  };
-
-  const saveValue = (id: string) => {
-    const val = Number(editAmount);
-    if (!isNaN(val) && val > 0) {
-      setProjects((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, value: val } : p))
-      );
-    }
-    setEditingValue(null);
   };
 
   return (
-    <div className="space-y-6">
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-accent/15 border border-accent/40 text-accent px-4 py-3 rounded-lg text-sm font-medium shadow-lg animate-slide-in flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" /> {toast}
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Projects</h1>
+          <p className="text-text-secondary text-sm mt-1">{store.projects.length} active projects</p>
         </div>
-      )}
-
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <FolderKanban className="w-6 h-6 text-secondary" /> Projects
-        </h1>
-        <p className="text-text-muted text-sm mt-1">
-          {projects.length} total ·{" "}
-          {projects.filter((p) => p.status === "in-progress").length} active
-        </p>
+        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary/90">
+          <Plus className="w-4 h-4" /> New Project
+        </button>
       </div>
 
-      {projects.length === 0 && (
-        <div className="bg-surface border border-border rounded-xl p-12 text-center">
-          <FolderKanban className="w-10 h-10 text-text-muted mx-auto mb-4" />
-          <h3 className="text-text-primary font-semibold mb-2">No projects yet</h3>
-          <p className="text-text-muted text-sm max-w-md mx-auto">
-            Spin up a project from a lead or client to start tracking the build.
-          </p>
+      {showForm && (
+        <div className="bg-surface-2 border border-border rounded-xl p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <input placeholder="Project name" className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            <input placeholder="Client name" className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted" value={form.client} onChange={e => setForm({ ...form, client: e.target.value })} />
+            <input type="date" className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} />
+            <input type="number" placeholder="Project value ($)" className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted" value={form.value || ""} onChange={e => setForm({ ...form, value: Number(e.target.value) })} />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">Cancel</button>
+            <button onClick={addProject} className="px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium">Create Project</button>
+          </div>
         </div>
       )}
 
-      <div className="space-y-4">
-        {projects.map((p) => (
-          <div key={p.id} className="bg-surface border border-border rounded-xl p-6 hover:border-border-bright transition-all">
-            <div className="flex items-center justify-between mb-3">
+      <div className="space-y-3">
+        {store.projects.length === 0 && (
+          <p className="text-text-muted text-center py-12">No projects yet. Create your first project or convert a lead.</p>
+        )}
+        {store.projects.map(project => (
+          <div key={project.id} className="bg-surface-2 border border-border rounded-xl p-4 group">
+            <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="text-text-primary font-semibold text-lg">{p.name}</h3>
-                <p className="text-text-muted text-sm">
-                  {p.client || "–"} — {p.tier}
-                </p>
+                <h3 className="font-semibold text-text-primary">{project.name}</h3>
+                <p className="text-sm text-text-secondary">{project.client || "No client assigned"}</p>
               </div>
-              <div className="text-right">
-                <button
-                  onClick={() => cycleStatus(p.id)}
-                  className={`text-xs px-3 py-1 rounded-full font-medium cursor-pointer ${statusColors[p.status]}`}
-                >
-                  {statusLabels[p.status]}
-                </button>
-                {editingValue === p.id ? (
-                  <div className="mt-1">
-                    <div className="flex items-center gap-1">
-                      <span className="text-accent font-bold">$</span>
-                      <input
-                        autoFocus
-                        type="number"
-                        min="1"
-                        value={editAmount}
-                        onChange={(e) => setEditAmount(e.target.value)}
-                        onBlur={() => saveValue(p.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") saveValue(p.id);
-                          if (e.key === "Escape") setEditingValue(null);
-                        }}
-                        className="w-24 bg-surface-2 border border-primary rounded px-2 py-1 text-accent font-bold text-sm focus:outline-none"
-                        style={{ appearance: "textfield", MozAppearance: "textfield" }}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => startEditValue(p.id, p.value)}
-                    className="text-accent font-bold mt-1 cursor-pointer hover:underline text-left"
-                    title="Click to set project value"
-                  >
-                    ${p.value.toLocaleString()}
+              <button onClick={() => store.removeItem("projects", project.id)} className="text-text-muted hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 mb-3 text-xs text-text-muted">
+              {project.dueDate && <span>Due: {project.dueDate}</span>}
+              <span className="text-accent font-medium">${project.value.toLocaleString()}</span>
+              {project.paid > 0 && <span className="text-accent">Paid: ${project.paid.toLocaleString()}</span>}
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full h-1.5 bg-surface rounded-full mb-3">
+              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${project.progress}%` }} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                {statuses.map(s => (
+                  <button key={s} onClick={() => store.updateItem("projects", project.id, { status: s })} className={`text-[11px] px-2 py-1 rounded-md font-medium capitalize ${project.status === s ? "bg-primary/20 text-primary" : "bg-surface text-text-muted hover:text-text-secondary"}`}>
+                    {s}
                   </button>
-                )}
+                ))}
               </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={p.progress}
-                onChange={(e) => setProgress(p.id, Number(e.target.value))}
-                className="flex-1 accent-primary cursor-pointer"
-              />
-              <span className="text-text-muted text-sm font-mono w-12 text-right">{p.progress}%</span>
-            </div>
-            <div className="h-2 bg-surface-2 rounded-full overflow-hidden mt-2">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${p.progress}%`,
-                  background:
-                    p.progress === 100
-                      ? "#00FF88"
-                      : "linear-gradient(90deg, #00D4FF, #7B61FF)",
-                }}
-              />
-            </div>
-
-            <div className="flex items-center justify-between mt-4">
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => sendStripeInvoice(p.id, p.client, p.value, "deposit")}
-                  disabled={payLoading === p.id}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-accent/30 text-accent bg-accent/5 hover:bg-accent/15 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  {payLoading === p.id ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  )}
-                  Send Deposit Invoice (50%)
+              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => handleStripe(project)} className="flex items-center gap-1 text-xs px-2 py-1 bg-accent/10 text-accent rounded hover:bg-accent/20">
+                  <CreditCard className="w-3 h-3" /> 50% Deposit
                 </button>
-                <button
-                  onClick={() => sendStripeInvoice(p.id, p.client, p.value, "final")}
-                  disabled={payLoading === p.id}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-accent/30 text-accent bg-accent/5 hover:bg-accent/15 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  {payLoading === p.id ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  )}
-                  Send Final Invoice
-                </button>
-              </div>
-              <div className="flex items-center gap-3">
-                {p.dueDate && (
-                  <span className="text-text-muted text-xs">Due: {p.dueDate}</span>
-                )}
-                <button
-                  onClick={() => removeProject(p.id)}
-                  className="text-text-muted hover:text-danger p-1 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
+                <button onClick={() => store.convertProjectToClient(project)} className="flex items-center gap-1 text-xs px-2 py-1 bg-secondary/10 text-secondary rounded hover:bg-secondary/20">
+                  <UserCheck className="w-3 h-3" /> To Client
                 </button>
               </div>
             </div>

@@ -1,79 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 
-let _stripe: any = null;
-function getStripe() {
-  if (!_stripe) {
-    const Stripe = require("stripe");
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-      apiVersion: "2025-02-24.acacia",
-    });
-  }
-  return _stripe;
-}
-
 export async function POST(req: NextRequest) {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json(
-      { error: "Stripe not configured — add STRIPE_SECRET_KEY to Vercel env" },
-      { status: 503 }
-    );
-  }
-
   try {
-    const { projectId, clientName, amount, type } = await req.json();
-
-    if (!projectId || !type) {
-      return NextResponse.json({ error: "Missing project or payment type" }, { status: 400 });
+    const { projectId, name, amount } = await req.json();
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) {
+      return NextResponse.json({ error: "Stripe not configured" }, { status: 500 });
     }
 
-    if (!amount || amount <= 0) {
-      return NextResponse.json(
-        { error: `Project value is $0. Set a project value before sending an invoice.` },
-        { status: 400 }
-      );
-    }
-
-    if (amount < 0.50) {
-      return NextResponse.json(
-        { error: `Minimum charge is $0.50. Project value: $${amount}` },
-        { status: 400 }
-      );
-    }
-
-    const origin = req.headers.get("origin") || "https://555-dashboard.vercel.app";
-    const stripe = getStripe();
-
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: `555 Digital — ${type === "deposit" ? "Deposit" : "Final Payment"}`,
-              description: clientName || "Website project",
-            },
-            unit_amount: Math.round(amount * 100),
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: {
-        projectId,
-        type,
-        amount: String(amount),
+    // Use test mode prices for now
+    const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${stripeKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      success_url: `${origin}/projects?paid=1`,
-      cancel_url: `${origin}/projects?cancelled=1`,
+      body: new URLSearchParams({
+        "line_items[0][price_data][currency]": "usd",
+        "line_items[0][price_data][product_data][name]": name || "Website Project Deposit",
+        "line_items[0][price_data][unit_amount]": String(amount || 5000),
+        "line_items[0][quantity]": "1",
+        "mode": "payment",
+        "success_url": `${req.headers.get("origin") || "https://555-dashboard.vercel.app"}/projects?paid=true`,
+        "cancel_url": `${req.headers.get("origin") || "https://555-dashboard.vercel.app"}/projects?paid=false`,
+        "metadata[project_id]": projectId || "",
+      }),
     });
 
+    const session = await res.json();
+    if (session.error) {
+      return NextResponse.json({ error: session.error.message }, { status: 400 });
+    }
     return NextResponse.json({ url: session.url });
-  } catch (e: any) {
-    console.error("Stripe checkout error:", e);
-    return NextResponse.json(
-      { error: e.message || "Checkout failed" },
-      { status: 500 }
-    );
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

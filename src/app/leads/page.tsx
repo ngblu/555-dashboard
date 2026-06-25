@@ -1,410 +1,130 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  Crosshair,
-  Plus,
-  Globe,
-  Mail,
-  X,
-  RefreshCw,
-  Zap,
-  UserPlus,
-  FolderPlus,
-  CheckCircle2,
-} from "lucide-react";
-import { useData } from "@/lib/store";
-import type { Lead, LeadStatus } from "@/lib/types";
-import Link from "next/link";
-import { FileSearch } from "lucide-react";
+import { useState } from "react";
+import { Crosshair, Plus, X, ArrowRightLeft, UserCheck, Rocket } from "lucide-react";
+import { useStore, Lead } from "@/lib/useStore";
 
-const statusFlow: LeadStatus[] = [
-  "found",
-  "audited",
-  "emailed",
-  "replied",
-  "converted",
-  "dead",
-];
-
-const statusColors: Record<LeadStatus, string> = {
-  found: "bg-text-muted/20 text-text-secondary",
-  audited: "bg-warning/20 text-warning",
-  emailed: "bg-primary/20 text-primary",
-  replied: "bg-secondary/20 text-secondary",
-  converted: "bg-accent/20 text-accent",
-  dead: "bg-danger/20 text-danger",
-};
+const statusFlow = ["found", "audited", "emailed", "replied", "converted"];
 
 export default function LeadsPage() {
-  const {
-    leads,
-    setLeads,
-    convertLeadToClient,
-    convertLeadToProject,
-    hydrated,
-  } = useData();
-
-  const [showAdd, setShowAdd] = useState(false);
-  const [newLead, setNewLead] = useState({
-    businessName: "",
-    website: "",
-    industry: "",
-    contactEmail: "",
-    notes: "",
-  });
-  const [refreshing, setRefreshing] = useState(false);
-  const [toast, setToast] = useState("");
-
-  const flash = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 2500);
-  };
-
-  // Poll for website submissions
-  const fetchWebLeads = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      const res = await fetch("/api/submit-lead");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.leads?.length > 0) {
-          const webLeads: Lead[] = data.leads.map(
-            (l: Record<string, unknown>) => ({
-              id: l.id as string,
-              businessName: (l.name as string) || "Unknown",
-              website: (l.website as string) || "",
-              industry: "",
-              issues: [],
-              status: "found" as LeadStatus,
-              contactEmail: (l.email as string) || "",
-              notes: `Budget: ${(l.budget as string) || "N/A"}\nMessage: ${
-                (l.message as string) || ""
-              }`,
-              audit: l.audit as Lead["audit"],
-              source: "website" as const,
-              createdAt:
-                (l.createdAt as string) || new Date().toISOString(),
-            })
-          );
-          // Merge without duplicates
-          setLeads((prev) => {
-            const existingIds = new Set(prev.map((p) => p.id));
-            const newOnes = webLeads.filter((w) => !existingIds.has(w.id));
-            if (newOnes.length === 0) return prev;
-            return [...newOnes, ...prev];
-          });
-        }
-      }
-    } catch {
-      // API not available, that's fine
-    }
-    setRefreshing(false);
-  }, [setLeads]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    fetchWebLeads();
-    const interval = setInterval(fetchWebLeads, 30000); // Poll every 30s
-    return () => clearInterval(interval);
-  }, [fetchWebLeads, hydrated]);
+  const store = useStore();
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ businessName: "", name: "", email: "", website: "", budget: "", message: "" });
 
   const addLead = () => {
-    if (!newLead.businessName) return;
-    setLeads((prev) => [
-      {
-        ...newLead,
-        id: "l" + Date.now(),
-        issues: [],
-        status: "found",
-        source: "manual",
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
-    setNewLead({
-      businessName: "",
-      website: "",
-      industry: "",
-      contactEmail: "",
-      notes: "",
-    });
-    setShowAdd(false);
+    if (!form.businessName && !form.name) return;
+    const lead: Lead = {
+      id: "l" + Date.now(),
+      businessName: form.businessName,
+      name: form.name || form.businessName,
+      email: form.email,
+      website: form.website,
+      budget: form.budget,
+      message: form.message,
+      status: "found",
+      audit: null,
+      createdAt: new Date().toISOString(),
+    };
+    store.addLeads([lead]);
+    setForm({ businessName: "", name: "", email: "", website: "", budget: "", message: "" });
+    setShowForm(false);
   };
 
-  const cycleStatus = (id: string) => {
-    setLeads((prev) =>
-      prev.map((l) => {
-        if (l.id !== id) return l;
-        const idx = statusFlow.indexOf(l.status);
-        const next = statusFlow[(idx + 1) % statusFlow.length];
-        return { ...l, status: next };
-      })
-    );
+  const advanceStatus = (lead: Lead) => {
+    const idx = statusFlow.indexOf(lead.status);
+    if (idx < statusFlow.length - 1) {
+      store.updateItem("leads", lead.id, { status: statusFlow[idx + 1] });
+    }
   };
-
-  const removeLead = (id: string) =>
-    setLeads((prev) => prev.filter((l) => l.id !== id));
-
-  const handleConvertToClient = (lead: Lead) => {
-    convertLeadToClient(lead.id, lead.audit ? 0 : 0);
-    flash(`${lead.businessName} added to Clients ✓`);
-  };
-
-  const handleConvertToProject = (lead: Lead) => {
-    convertLeadToProject(lead.id, {
-      name: `${lead.businessName} Website`,
-      tier: "full",
-    });
-    flash(`Client + Project created for ${lead.businessName} ✓`);
-  };
-
-  const inputCls =
-    "w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-text-primary text-sm focus:border-primary focus:outline-none";
 
   return (
-    <div className="space-y-6">
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-accent/15 border border-accent/40 text-accent px-4 py-3 rounded-lg text-sm font-medium shadow-lg animate-slide-in flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" /> {toast}
-        </div>
-      )}
-
+    <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Crosshair className="w-6 h-6 text-warning" /> Lead Pipeline
-          </h1>
-          <p className="text-text-muted text-sm mt-1">
-            {leads.length} prospects tracked
-          </p>
+          <h1 className="text-2xl font-bold">Lead Pipeline</h1>
+          <p className="text-text-secondary text-sm mt-1">{store.leads.length} prospects tracked</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={fetchWebLeads}
-            disabled={refreshing}
-            className="bg-surface-2 border border-border text-text-secondary px-3 py-2 rounded-lg text-sm hover:border-primary hover:text-primary transition-all flex items-center gap-2"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </button>
-          <button
-            onClick={() => setShowAdd(!showAdd)}
-            className="bg-primary/10 text-primary border border-primary/20 px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/20 transition-all flex items-center gap-2"
-          >
+        <div className="flex gap-3">
+          <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
             <Plus className="w-4 h-4" /> Add Lead
           </button>
         </div>
       </div>
 
-      {showAdd && (
-        <div className="bg-surface border border-border rounded-xl p-6 space-y-4 animate-slide-in">
-          <div className="grid grid-cols-2 gap-4">
-            <input
-              placeholder="Business Name *"
-              className={inputCls}
-              value={newLead.businessName}
-              onChange={(e) =>
-                setNewLead({ ...newLead, businessName: e.target.value })
-              }
-            />
-            <input
-              placeholder="Website URL"
-              className={inputCls}
-              value={newLead.website}
-              onChange={(e) =>
-                setNewLead({ ...newLead, website: e.target.value })
-              }
-            />
-            <input
-              placeholder="Industry"
-              className={inputCls}
-              value={newLead.industry}
-              onChange={(e) =>
-                setNewLead({ ...newLead, industry: e.target.value })
-              }
-            />
-            <input
-              placeholder="Contact Email"
-              className={inputCls}
-              value={newLead.contactEmail}
-              onChange={(e) =>
-                setNewLead({ ...newLead, contactEmail: e.target.value })
-              }
-            />
+      {showForm && (
+        <div className="bg-surface-2 border border-border rounded-xl p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <input placeholder="Business Name" className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted" value={form.businessName} onChange={e => setForm({ ...form, businessName: e.target.value })} />
+            <input placeholder="Contact Name" className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            <input placeholder="Email" type="email" className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+            <input placeholder="Website URL" className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted" value={form.website} onChange={e => setForm({ ...form, website: e.target.value })} />
+            <select className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary" value={form.budget} onChange={e => setForm({ ...form, budget: e.target.value })}>
+              <option value="">Budget range</option>
+              <option value="$500-1,000">$500 — $1,000</option>
+              <option value="$1,000-2,500">$1,000 — $2,500</option>
+              <option value="$2,500+">$2,500+</option>
+            </select>
+            <input placeholder="Notes" className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted" value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} />
           </div>
-          <input
-            placeholder="Notes"
-            className={inputCls}
-            value={newLead.notes}
-            onChange={(e) =>
-              setNewLead({ ...newLead, notes: e.target.value })
-            }
-          />
-          <button
-            onClick={addLead}
-            className="bg-primary text-background px-6 py-2 rounded-lg text-sm font-semibold hover:shadow-[0_0_15px_rgba(0,212,255,0.3)] transition-all"
-          >
-            Save Lead
-          </button>
-        </div>
-      )}
-
-      {leads.length === 0 && (
-        <div className="bg-surface border border-border rounded-xl p-12 text-center">
-          <Crosshair className="w-10 h-10 text-text-muted mx-auto mb-4" />
-          <h3 className="text-text-primary font-semibold mb-2">No leads yet</h3>
-          <p className="text-text-muted text-sm max-w-md mx-auto">
-            Leads from your 555 Digital contact form will appear here
-            automatically. You can also add leads manually.
-          </p>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">Cancel</button>
+            <button onClick={addLead} className="px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium">Save Lead</button>
+          </div>
         </div>
       )}
 
       <div className="space-y-3">
-        {leads.map((lead) => (
-          <div
-            key={lead.id}
-            className="bg-surface border border-border rounded-xl p-5 hover:border-border-bright transition-all"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-text-primary font-semibold">
-                    {lead.businessName}
-                  </h3>
-                  {lead.industry && (
-                    <span className="text-text-muted text-xs bg-surface-2 px-2 py-0.5 rounded-full">
-                      {lead.industry}
-                    </span>
-                  )}
-                  <button
-                    onClick={() => cycleStatus(lead.id)}
-                    className={`text-xs px-2.5 py-0.5 rounded-full font-medium cursor-pointer ${statusColors[lead.status]}`}
-                  >
-                    {lead.status}
-                  </button>
+        {store.leads.length === 0 && (
+          <p className="text-text-muted text-center py-12">No leads yet. Add your first prospect or check back after a website form submission.</p>
+        )}
+        {store.leads.map(lead => (
+          <div key={lead.id} className="bg-surface-2 border border-border rounded-xl p-4 group">
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <h3 className="font-semibold text-text-primary">{lead.businessName || lead.name}</h3>
+                <div className="flex items-center gap-2 mt-1">
                   {lead.source === "website" && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary flex items-center gap-1">
-                      <Zap className="w-3 h-3" /> From website
-                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-primary/20 text-primary rounded font-medium uppercase tracking-wider">From Website</span>
                   )}
-                  {lead.convertedClientId && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Client
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-4 text-text-muted text-xs">
-                  {lead.website && (
-                    <span className="flex items-center gap-1">
-                      <Globe className="w-3 h-3" /> {lead.website}
-                    </span>
-                  )}
-                  {lead.contactEmail && (
-                    <span className="flex items-center gap-1">
-                      <Mail className="w-3 h-3" /> {lead.contactEmail}
-                    </span>
-                  )}
-                </div>
-                {lead.notes && (
-                  <p className="text-text-secondary text-sm mt-2 whitespace-pre-line">
-                    {lead.notes}
-                  </p>
-                )}
-                {lead.audit && (
-                  <div className="flex gap-4 mt-3 p-3 bg-surface-2 rounded-lg">
-                    <div className="text-center">
-                      <span
-                        className={`text-lg font-bold ${
-                          lead.audit.performance >= 90
-                            ? "text-accent"
-                            : lead.audit.performance >= 50
-                            ? "text-warning"
-                            : "text-danger"
-                        }`}
-                      >
-                        {lead.audit.performance}
-                      </span>
-                      <p className="text-text-muted text-[10px]">Perf</p>
-                    </div>
-                    <div className="text-center">
-                      <span
-                        className={`text-lg font-bold ${
-                          lead.audit.seo >= 90
-                            ? "text-accent"
-                            : lead.audit.seo >= 50
-                            ? "text-warning"
-                            : "text-danger"
-                        }`}
-                      >
-                        {lead.audit.seo}
-                      </span>
-                      <p className="text-text-muted text-[10px]">SEO</p>
-                    </div>
-                    <div className="text-center">
-                      <span className="text-text-primary text-sm font-mono">
-                        {lead.audit.fcp}
-                      </span>
-                      <p className="text-text-muted text-[10px]">FCP</p>
-                    </div>
-                    <div className="text-center">
-                      <span className="text-text-primary text-sm font-mono">
-                        {lead.audit.lcp}
-                      </span>
-                      <p className="text-text-muted text-[10px]">LCP</p>
-                    </div>
-                  </div>
-                )}
-                {lead.issues.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {lead.issues.map((issue) => (
-                      <span
-                        key={issue}
-                        className="text-[10px] bg-danger/10 text-danger px-2 py-0.5 rounded-full"
-                      >
-                        {issue}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Conversion actions */}
-                <div className="flex flex-wrap gap-2 mt-4">
-                  <Link
-                    href={`/audit?leadId=${encodeURIComponent(
-                      lead.id
-                    )}&url=${encodeURIComponent(
-                      lead.website || ""
-                    )}&business=${encodeURIComponent(lead.businessName)}`}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-warning/30 text-warning bg-warning/5 hover:bg-warning/15 transition-all flex items-center gap-1.5"
-                  >
-                    <FileSearch className="w-3.5 h-3.5" /> Run Audit
-                  </Link>
-                  <button
-                    onClick={() => handleConvertToClient(lead)}
-                    disabled={!!lead.convertedClientId}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-primary/30 text-primary bg-primary/5 hover:bg-primary/15 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <UserPlus className="w-3.5 h-3.5" />
-                    {lead.convertedClientId ? "Converted" : "Convert to Client"}
-                  </button>
-                  <button
-                    onClick={() => handleConvertToProject(lead)}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-secondary/30 text-secondary bg-secondary/5 hover:bg-secondary/15 transition-all flex items-center gap-1.5"
-                  >
-                    <FolderPlus className="w-3.5 h-3.5" /> Spin up Project
-                  </button>
+                  {lead.website && <span className="text-xs text-text-secondary">{lead.website}</span>}
+                  {lead.email && <span className="text-xs text-text-secondary">{lead.email}</span>}
                 </div>
               </div>
-              <button
-                onClick={() => removeLead(lead.id)}
-                className="text-text-muted hover:text-danger p-1 transition-colors"
-              >
+              <button onClick={() => store.removeItem("leads", lead.id)} className="text-text-muted hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity">
                 <X className="w-4 h-4" />
               </button>
+            </div>
+
+            {(lead.budget || lead.message) && (
+              <p className="text-sm text-text-secondary mb-3">
+                {lead.budget && <span className="mr-3">Budget: {lead.budget}</span>}
+                {lead.message}
+              </p>
+            )}
+
+            {lead.audit && (
+              <div className="flex gap-3 mb-3 text-xs text-text-muted">
+                <span className={lead.audit.performance > 70 ? "text-accent" : "text-warning"}>⚡ Perf: {lead.audit.performance}/100</span>
+                <span>🔍 SEO: {lead.audit.seo}/100</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                {statusFlow.map(s => (
+                  <button key={s} onClick={() => store.updateItem("leads", lead.id, { status: s })} className={`text-[11px] px-2 py-1 rounded-md font-medium capitalize transition-colors ${lead.status === s ? "bg-primary/20 text-primary" : "bg-surface text-text-muted hover:text-text-secondary"}`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => store.convertLeadToProject(lead)} className="flex items-center gap-1 text-xs px-2 py-1 bg-accent/10 text-accent rounded hover:bg-accent/20" title="Convert to Project">
+                  <Rocket className="w-3 h-3" /> To Project
+                </button>
+                <button onClick={() => store.convertLeadToClient(lead)} className="flex items-center gap-1 text-xs px-2 py-1 bg-secondary/10 text-secondary rounded hover:bg-secondary/20" title="Convert to Client">
+                  <UserCheck className="w-3 h-3" /> To Client
+                </button>
+              </div>
             </div>
           </div>
         ))}
