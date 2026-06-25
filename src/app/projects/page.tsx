@@ -2,44 +2,68 @@
 
 import { useState } from "react";
 import { FolderKanban, Plus, X, UserCheck, CreditCard } from "lucide-react";
-import { useStore, Project } from "@/lib/useStore";
+import { useData } from "@/lib/store";
 
 export default function ProjectsPage() {
-  const store = useStore();
+  const { projects, setProjects, createProjectForClient, clients, setClients } = useData();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", client: "", dueDate: "", value: 0 });
 
   const addProject = () => {
     if (!form.name) return;
-    const project: Project = {
-      id: "p" + Date.now(),
+    const newProject = {
+      id: "p_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       name: form.name,
+      clientId: "",
       client: form.client,
-      status: "planning",
-      progress: 0,
+      status: "not-started" as const,
+      tier: "full" as const,
       value: form.value,
-      paid: 0,
+      progress: 0,
+      startDate: new Date().toISOString().split("T")[0],
       dueDate: form.dueDate || new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
     };
-    store.updateItem("projects", project.id, project as any);
+    setProjects([newProject, ...projects]);
     setForm({ name: "", client: "", dueDate: "", value: 0 });
     setShowForm(false);
   };
 
-  const statuses = ["planning", "building", "review", "launched"];
+  const statuses = ["not-started", "in-progress", "review", "completed"];
 
-  const handleStripe = async (project: Project) => {
-    if (!project.value) return alert("Set a project value first.");
+  const handleStripe = async (p: { id: string; name: string; value: number }) => {
+    if (!p.value) return alert("Set a project value first");
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: project.id, name: project.name, amount: Math.round(project.value * 0.5 * 100) }),
+        body: JSON.stringify({ projectId: p.id, name: p.name, amount: Math.round(p.value * 0.5 * 100) }),
       });
       const data = await res.json();
       if (data.url) window.open(data.url, "_blank");
     } catch (e) {
-      alert("Failed to create checkout: " + String(e));
+      alert("Failed: " + String(e));
+    }
+  };
+
+  const convertToClient = (p: { id: string; name: string; client?: string; value: number; clientId?: string }) => {
+    if (p.clientId) {
+      // Already linked to a client — just set status
+      setClients(clients.map(c => c.id === p.clientId ? { ...c, status: "active" as const } : c));
+    } else {
+      const newClient = {
+        id: "c_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        name: p.client || p.name,
+        business: p.client || p.name,
+        email: "",
+        phone: "",
+        website: "",
+        status: "active" as const,
+        value: p.value,
+        notes: "",
+        createdAt: new Date().toISOString(),
+        fromLeadId: undefined as string | undefined,
+      };
+      setClients([newClient, ...clients]);
     }
   };
 
@@ -48,7 +72,7 @@ export default function ProjectsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Projects</h1>
-          <p className="text-text-secondary text-sm mt-1">{store.projects.length} active projects</p>
+          <p className="text-text-secondary text-sm mt-1">{projects.length} projects</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary/90">
           <Plus className="w-4 h-4" /> New Project
@@ -71,45 +95,38 @@ export default function ProjectsPage() {
       )}
 
       <div className="space-y-3">
-        {store.projects.length === 0 && (
-          <p className="text-text-muted text-center py-12">No projects yet. Create your first project or convert a lead.</p>
-        )}
-        {store.projects.map(project => (
-          <div key={project.id} className="bg-surface-2 border border-border rounded-xl p-4 group">
+        {projects.length === 0 && <p className="text-text-muted text-center py-12">No projects yet. Create one or convert a lead.</p>}
+        {projects.map(p => (
+          <div key={p.id} className="bg-surface-2 border border-border rounded-xl p-4 group">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="font-semibold text-text-primary">{project.name}</h3>
-                <p className="text-sm text-text-secondary">{project.client || "No client assigned"}</p>
+                <h3 className="font-semibold text-text-primary">{p.name}</h3>
+                <p className="text-sm text-text-secondary">{p.client || "No client"}</p>
               </div>
-              <button onClick={() => store.removeItem("projects", project.id)} className="text-text-muted hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => setProjects(projects.filter(x => x.id !== p.id))} className="text-text-muted hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity">
                 <X className="w-4 h-4" />
               </button>
             </div>
-
             <div className="flex items-center gap-3 mb-3 text-xs text-text-muted">
-              {project.dueDate && <span>Due: {project.dueDate}</span>}
-              <span className="text-accent font-medium">${project.value.toLocaleString()}</span>
-              {project.paid > 0 && <span className="text-accent">Paid: ${project.paid.toLocaleString()}</span>}
+              {p.dueDate && <span>Due: {p.dueDate}</span>}
+              <span className="text-accent font-medium">${(p.value || 0).toLocaleString()}</span>
             </div>
-
-            {/* Progress bar */}
             <div className="w-full h-1.5 bg-surface rounded-full mb-3">
-              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${project.progress}%` }} />
+              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${p.progress || 0}%` }} />
             </div>
-
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 {statuses.map(s => (
-                  <button key={s} onClick={() => store.updateItem("projects", project.id, { status: s })} className={`text-[11px] px-2 py-1 rounded-md font-medium capitalize ${project.status === s ? "bg-primary/20 text-primary" : "bg-surface text-text-muted hover:text-text-secondary"}`}>
+                  <button key={s} onClick={() => setProjects(projects.map(x => x.id === p.id ? { ...x, status: s as typeof p.status } : x))} className={`text-[11px] px-2 py-1 rounded-md font-medium capitalize ${p.status === s ? "bg-primary/20 text-primary" : "bg-surface text-text-muted hover:text-text-secondary"}`}>
                     {s}
                   </button>
                 ))}
               </div>
               <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => handleStripe(project)} className="flex items-center gap-1 text-xs px-2 py-1 bg-accent/10 text-accent rounded hover:bg-accent/20">
+                <button onClick={() => handleStripe(p as { id: string; name: string; value: number })} className="flex items-center gap-1 text-xs px-2 py-1 bg-accent/10 text-accent rounded hover:bg-accent/20">
                   <CreditCard className="w-3 h-3" /> 50% Deposit
                 </button>
-                <button onClick={() => store.convertProjectToClient(project)} className="flex items-center gap-1 text-xs px-2 py-1 bg-secondary/10 text-secondary rounded hover:bg-secondary/20">
+                <button onClick={() => convertToClient(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-secondary/10 text-secondary rounded hover:bg-secondary/20">
                   <UserCheck className="w-3 h-3" /> To Client
                 </button>
               </div>
