@@ -93,7 +93,9 @@ export default function ProjectsPage() {
         window.open(data.url, "_blank");
         flash(`Stripe checkout opened for ${type}`);
       } else {
-        flash(`Error: ${data.error || "Failed to create checkout"}`);
+        flash(data.error || "Failed to create checkout");
+        setPayLoading(null);
+        return; // don't log revenue if checkout failed
       }
     } catch (e) {
       flash("Failed to connect to Stripe");

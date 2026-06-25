@@ -22,8 +22,22 @@ export async function POST(req: NextRequest) {
   try {
     const { projectId, clientName, amount, type } = await req.json();
 
-    if (!projectId || !amount || !type) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    if (!projectId || !type) {
+      return NextResponse.json({ error: "Missing project or payment type" }, { status: 400 });
+    }
+
+    if (!amount || amount <= 0) {
+      return NextResponse.json(
+        { error: `Project value is $0. Set a project value before sending an invoice.` },
+        { status: 400 }
+      );
+    }
+
+    if (amount < 0.50) {
+      return NextResponse.json(
+        { error: `Minimum charge is $0.50. Project value: $${amount}` },
+        { status: 400 }
+      );
     }
 
     const origin = req.headers.get("origin") || "https://555-dashboard.vercel.app";
