@@ -554,35 +554,43 @@ Audit by 555 Digital · https://555digital.dev
                   </p>
                 </div>
                 {a.result && (
-                  <div className="flex gap-4">
-                    <div className="text-center">
-                      <span
-                        className={`text-lg font-bold ${
+                  <div className="flex items-center gap-4">
+                    <div className="flex gap-4">
+                      <div className="text-center">
+                        <span className={`text-lg font-bold ${
                           a.result.performance >= 90
                             ? "text-accent"
                             : a.result.performance >= 50
                             ? "text-warning"
                             : "text-danger"
-                        }`}
-                      >
-                        {a.result.performance}
-                      </span>
-                      <p className="text-text-muted text-[10px]">Perf</p>
-                    </div>
-                    <div className="text-center">
-                      <span
-                        className={`text-lg font-bold ${
+                        }`}>
+                          {a.result.performance}
+                        </span>
+                        <p className="text-text-muted text-[10px]">Perf</p>
+                      </div>
+                      <div className="text-center">
+                        <span className={`text-lg font-bold ${
                           a.result.seo >= 90
                             ? "text-accent"
                             : a.result.seo >= 50
                             ? "text-warning"
                             : "text-danger"
-                        }`}
-                      >
-                        {a.result.seo}
-                      </span>
-                      <p className="text-text-muted text-[10px]">SEO</p>
+                        }`}>
+                          {a.result.seo}
+                        </span>
+                        <p className="text-text-muted text-[10px]">SEO</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={() => {
+                        const reportUrl = `${window.location.origin}/audit/report/${a.id}`;
+                        navigator.clipboard.writeText(reportUrl);
+                        alert("Report link copied!\n\n" + reportUrl);
+                      }}
+                      className="text-xs px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-all font-medium"
+                    >
+                      📋 Share
+                    </button>
                   </div>
                 )}
               </div>
