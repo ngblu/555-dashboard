@@ -82,6 +82,9 @@ export default function Sidebar() {
         <Link href="/privacy" onClick={close} className="hover:text-text-secondary transition-colors">
           Privacy
         </Link>
+        <Link href="/terms" onClick={close} className="hover:text-text-secondary transition-colors">
+          Terms
+        </Link>
         <span className="opacity-40 font-mono text-[10px]">555.CMD v1.0</span>
       </div>
     </div>
