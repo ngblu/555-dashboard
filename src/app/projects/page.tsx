@@ -180,7 +180,8 @@ export default function ProjectsPage() {
                           if (e.key === "Enter") saveValue(p.id);
                           if (e.key === "Escape") setEditingValue(null);
                         }}
-                        className="w-24 bg-surface-2 border border-primary rounded px-2 py-1 text-accent font-bold text-sm focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-24 bg-surface-2 border border-primary rounded px-2 py-1 text-accent font-bold text-sm focus:outline-none"
+                        style={{ appearance: "textfield", MozAppearance: "textfield" }}
                       />
                     </div>
                   </div>
