@@ -11,13 +11,14 @@ import {
   CheckSquare,
   Crosshair,
   FileSearch,
-  Cloud,
-  CloudOff,
-  Loader2,
+  Cloud,  
+  CloudOff, 
+  Loader2, 
   HardDrive,
-  Menu,
-  X,
+  Repeat,
   Wrench,
+  Menu,  
+  X,  
 } from "lucide-react";
 import { useData } from "@/lib/store";
 
@@ -27,6 +28,8 @@ const navItems = [
   { href: "/leads", icon: Crosshair, label: "Leads" },
   { href: "/clients", icon: Users, label: "Clients" },
   { href: "/projects", icon: FolderKanban, label: "Projects" },
+  { href: "/subscriptions", icon: Repeat, label: "Subscriptions" },
+  { href: "/maintenance", icon: Wrench, label: "Maintenance" },
   { href: "/tasks", icon: CheckSquare, label: "Tasks" },
   { href: "/revenue", icon: DollarSign, label: "Revenue" },
 ];
