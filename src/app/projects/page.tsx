@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FolderKanban, DollarSign, Trash2, CheckCircle2 } from "lucide-react";
+import { FolderKanban, Trash2, CheckCircle2, Loader2, ExternalLink } from "lucide-react";
 import { useData } from "@/lib/store";
 import type { ProjectStatus } from "@/lib/types";
 
@@ -70,14 +70,35 @@ export default function ProjectsPage() {
   const removeProject = (id: string) =>
     setProjects((prev) => prev.filter((p) => p.id !== id));
 
-  const logPayment = (
-    id: string,
+  const [payLoading, setPayLoading] = useState<string | null>(null); // projectId being processed
+
+  const sendStripeInvoice = async (
+    projectId: string,
+    clientName: string,
     value: number,
     type: "deposit" | "final"
   ) => {
+    setPayLoading(projectId);
     const amount = type === "deposit" ? Math.round(value / 2) : value;
-    addRevenueForProject(id, amount, type, "pending");
-    flash(`${type === "deposit" ? "Deposit" : "Final"} payment logged ($${amount.toLocaleString()}) ✓`);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, clientName, amount, type }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        // Log the pending revenue and open Stripe checkout
+        addRevenueForProject(projectId, amount, type, "pending");
+        window.open(data.url, "_blank");
+        flash(`Stripe checkout opened for ${type}`);
+      } else {
+        flash(`Error: ${data.error || "Failed to create checkout"}`);
+      }
+    } catch (e) {
+      flash("Failed to connect to Stripe");
+    }
+    setPayLoading(null);
   };
 
   return (
@@ -156,16 +177,28 @@ export default function ProjectsPage() {
             <div className="flex items-center justify-between mt-4">
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => logPayment(p.id, p.value, "deposit")}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-accent/30 text-accent bg-accent/5 hover:bg-accent/15 transition-all flex items-center gap-1.5"
+                  onClick={() => sendStripeInvoice(p.id, p.client, p.value, "deposit")}
+                  disabled={payLoading === p.id}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-accent/30 text-accent bg-accent/5 hover:bg-accent/15 transition-all flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  <DollarSign className="w-3.5 h-3.5" /> Log Deposit
+                  {payLoading === p.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  )}
+                  Send Deposit Invoice (50%)
                 </button>
                 <button
-                  onClick={() => logPayment(p.id, p.value, "final")}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-accent/30 text-accent bg-accent/5 hover:bg-accent/15 transition-all flex items-center gap-1.5"
+                  onClick={() => sendStripeInvoice(p.id, p.client, p.value, "final")}
+                  disabled={payLoading === p.id}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-accent/30 text-accent bg-accent/5 hover:bg-accent/15 transition-all flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  <DollarSign className="w-3.5 h-3.5" /> Log Final
+                  {payLoading === p.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  )}
+                  Send Final Invoice
                 </button>
               </div>
               <div className="flex items-center gap-3">
