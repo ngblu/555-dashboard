@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FolderKanban, Plus, X, UserCheck, CreditCard, Repeat } from "lucide-react";
+import { FolderKanban, Plus, X, UserCheck, CreditCard, Repeat, Clock, Calendar } from "lucide-react";
 import { useData } from "@/lib/store";
 import InlineEdit from "@/components/ui/InlineEdit";
 
@@ -87,7 +87,7 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Projects</h1>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><FolderKanban className="w-6 h-6 text-primary" /> Projects</h1>
           <p className="text-text-secondary text-sm mt-1">{projects.length} projects</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary/90">
@@ -110,10 +110,84 @@ export default function ProjectsPage() {
         </div>
       )}
 
+      {/* Mini Project Timeline */}
+      {projects.length > 0 && (
+        <div className="bg-surface border border-border rounded-xl p-5 overflow-hidden">
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-semibold text-text-primary">Project Timeline</h2>
+            <span className="text-text-muted text-xs">{projects.length} project{projects.length > 1 ? "s" : ""}</span>
+          </div>
+          <div className="overflow-x-auto pb-2 -mx-1 px-1">
+            <div className="flex gap-4" style={{ minWidth: projects.length > 1 ? `${projects.length * 220}px` : "100%" }}>
+              {projects.map(p => {
+                const startD = p.startDate ? new Date(p.startDate) : null;
+                const dueD = p.dueDate ? new Date(p.dueDate) : null;
+                const now = new Date();
+                const totalDays = (startD && dueD) ? Math.max(1, (dueD.getTime() - startD.getTime()) / 86400000) : 30;
+                const elapsedDays = startD ? Math.max(0, (now.getTime() - startD.getTime()) / 86400000) : 0;
+                const timeProgress = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
+                const isOverdue = dueD && dueD < now && p.status !== "completed";
+                const statusColor =
+                  p.status === "completed" ? "bg-accent" :
+                  p.status === "review" ? "bg-secondary" :
+                  p.status === "in-progress" ? "bg-primary" :
+                  "bg-text-muted";
+                return (
+                  <div key={p.id} className="bg-surface-2 border border-border rounded-lg p-4 flex flex-col gap-2 shrink-0" style={{ width: "200px" }}>
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3 h-3 text-text-muted" />
+                      <span className="text-xs font-medium text-text-primary truncate">{p.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-text-muted">
+                      {p.startDate && <span>{p.startDate}</span>}
+                      {p.startDate && p.dueDate && <span>→</span>}
+                      {p.dueDate && <span className={isOverdue ? "text-danger font-medium" : ""}>{p.dueDate}</span>}
+                    </div>
+                    {/* Timeline bar */}
+                    <div className="w-full h-2 bg-surface rounded-full relative overflow-hidden mt-1">
+                      <div
+                        className={`h-full rounded-full transition-all ${statusColor}`}
+                        style={{ width: `${p.progress || timeProgress}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                        p.status === "completed" ? "bg-accent/20 text-accent" :
+                        p.status === "review" ? "bg-secondary/20 text-secondary" :
+                        p.status === "in-progress" ? "bg-primary/20 text-primary" :
+                        "bg-text-muted/20 text-text-muted"
+                      }`}>
+                        {p.status}
+                      </span>
+                      <span className="text-[10px] text-text-muted">{p.progress || timeProgress}%</span>
+                    </div>
+                    {isOverdue && (
+                      <span className="text-[10px] text-danger font-medium bg-danger/10 rounded px-1.5 py-0.5 text-center">
+                        Overdue
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-3">
-        {projects.length === 0 && <p className="text-text-muted text-center py-12">No projects yet. Create one or convert a lead.</p>}
+        {projects.length === 0 && (
+          <div className="bg-surface border border-border rounded-xl p-12 text-center">
+            <FolderKanban className="w-10 h-10 text-text-muted mx-auto mb-4" />
+            <h3 className="text-text-primary font-semibold mb-2">No projects yet</h3>
+            <p className="text-text-muted text-sm max-w-md mx-auto mb-4">Create one from this page or convert a lead from the pipeline.</p>
+            <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+              <Plus className="w-4 h-4" /> New Project
+            </button>
+          </div>
+        )}
         {projects.map(p => (
-          <div key={p.id} className="bg-surface-2 border border-border rounded-xl p-4 group">
+          <div key={p.id} className="bg-surface border border-border rounded-xl p-5 group hover:border-border-bright transition-all duration-300">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 className="font-semibold text-text-primary">{p.name}</h3>

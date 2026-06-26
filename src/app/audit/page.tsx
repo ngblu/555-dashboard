@@ -295,13 +295,18 @@ Audit by 555 Digital · https://555digital.dev
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <FileSearch className="w-6 h-6 text-primary" /> Site Audit
-        </h1>
-        <p className="text-text-muted text-sm mt-1">
-          Scan any website and generate a free audit report to send prospects
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <FileSearch className="w-6 h-6 text-primary" /> Site Audit
+          </h1>
+          <p className="text-text-muted text-sm mt-1">
+            Scan any website and generate a free audit report to send prospects
+          </p>
+        </div>
+        <a href="/audit/report" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg text-sm font-medium hover:bg-primary/20 transition-all">
+          <FileSearch className="w-4 h-4" /> View Reports
+        </a>
       </div>
 
       {linkedLeadId && (
@@ -539,6 +544,13 @@ Audit by 555 Digital · https://555digital.dev
       )}
 
       {/* Saved Audits */}
+      {savedAudits.length === 0 && !result && (
+        <div className="bg-surface border border-border rounded-xl p-12 text-center">
+          <FileSearch className="w-10 h-10 text-text-muted mx-auto mb-4" />
+          <h3 className="text-text-primary font-semibold mb-2">No saved audits yet</h3>
+          <p className="text-text-muted text-sm max-w-md mx-auto">Run an audit above and save it to build your report library.</p>
+        </div>
+      )}
       {savedAudits.length > 0 && (
         <div>
           <h2 className="text-sm font-semibold text-text-primary mb-4">
@@ -556,7 +568,7 @@ Audit by 555 Digital · https://555digital.dev
                   setGoogleInfo(a.googleInfo || "");
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
-                className="bg-surface border border-border rounded-xl p-4 flex items-center justify-between cursor-pointer hover:border-primary/30 transition-all group"
+                className="bg-surface border border-border rounded-xl p-4 flex items-center justify-between cursor-pointer hover:border-primary/30 hover:border-border-bright transition-all duration-300 group"
               >
                 <div>
                   <h3 className="text-text-primary font-medium">

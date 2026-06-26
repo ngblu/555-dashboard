@@ -37,7 +37,7 @@ export default function RootLayout({
         <SakuraPetals />
         <DataProvider>
           <Sidebar />
-          <main className="ml-0 lg:ml-72 min-h-screen p-3 md:p-6 transition-all">
+          <main className="main-content min-h-screen p-3 md:p-6 transition-all">
             {children}
           </main>
           <QuickAdd />

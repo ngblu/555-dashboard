@@ -1,6 +1,6 @@
 "use client";
 
-import { DollarSign, Check } from "lucide-react";
+import { DollarSign, Check, Clock } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -70,24 +70,34 @@ export default function RevenuePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <DollarSign className="w-6 h-6 text-accent" /> Revenue
-        </h1>
-        <p className="text-text-muted text-sm mt-1">Track every dollar in and out</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <DollarSign className="w-6 h-6 text-accent" /> Revenue
+          </h1>
+          <p className="text-text-muted text-sm mt-1">Track every dollar in and out</p>
+        </div>
+        <div className="flex items-center gap-2 text-text-muted text-xs font-mono">
+          <Clock className="w-3.5 h-3.5" />
+          {new Date().toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "short",
+            day: "numeric",
+          })}
+        </div>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-surface border border-border rounded-xl p-5">
+        <div className="bg-surface border border-border rounded-xl p-5 hover:border-border-bright transition-all duration-300">
           <p className="text-text-muted text-xs mb-1">Total Earned</p>
           <p className="text-3xl font-bold text-accent">${totalEarned.toLocaleString()}</p>
         </div>
-        <div className="bg-surface border border-border rounded-xl p-5">
+        <div className="bg-surface border border-border rounded-xl p-5 hover:border-border-bright transition-all duration-300">
           <p className="text-text-muted text-xs mb-1">Pending</p>
           <p className="text-3xl font-bold text-warning">${totalPending.toLocaleString()}</p>
         </div>
-        <div className="bg-surface border border-border rounded-xl p-5">
+        <div className="bg-surface border border-border rounded-xl p-5 hover:border-border-bright transition-all duration-300">
           <p className="text-text-muted text-xs mb-1">Total Pipeline</p>
           <p className="text-3xl font-bold text-primary">${(totalEarned + totalPending).toLocaleString()}</p>
         </div>

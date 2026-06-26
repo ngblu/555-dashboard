@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Crosshair, Plus, X, ArrowRight, UserCheck, Rocket, ChevronRight } from "lucide-react";
+import { Crosshair, Plus, X, ArrowRight, UserCheck, Rocket, ChevronRight, Copy, Check } from "lucide-react";
 import { useData } from "@/lib/store";
 import type { LeadStatus } from "@/lib/types";
 import GeneratePitchButton from "@/components/ui/GeneratePitch";
@@ -20,6 +20,7 @@ const statusColors: Record<LeadStatus, string> = {
 export default function LeadsPage() {
   const { leads, setLeads, convertLeadToClient, convertLeadToProject, addNotification } = useData();
   const [showForm, setShowForm] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [form, setForm] = useState({
     businessName: "",
     website: "",
@@ -77,6 +78,26 @@ export default function LeadsPage() {
 
   const deleteLead = (leadId: string) => {
     setLeads((prev) => prev.filter((l) => l.id !== leadId));
+  };
+
+  const copyReportLink = (leadId: string) => {
+    const url = `${window.location.origin}/audit/report/${leadId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(leadId);
+      addNotification("Report link copied to clipboard", "info");
+      setTimeout(() => setCopiedId(null), 2000);
+    }).catch(() => {
+      // Fallback for older browsers
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopiedId(leadId);
+      addNotification("Report link copied to clipboard", "info");
+      setTimeout(() => setCopiedId(null), 2000);
+    });
   };
 
   const inputCls =
@@ -157,9 +178,14 @@ export default function LeadsPage() {
       {/* Leads list */}
       <div className="space-y-3">
         {leads.length === 0 && (
-          <p className="text-text-muted text-center py-12">
-            No leads yet. Add your first prospect or check back after a website form submission.
-          </p>
+          <div className="bg-surface border border-border rounded-xl p-12 text-center">
+            <Crosshair className="w-10 h-10 text-text-muted mx-auto mb-4" />
+            <h3 className="text-text-primary font-semibold mb-2">No leads yet</h3>
+            <p className="text-text-muted text-sm max-w-md mx-auto mb-4">Add your first prospect or check back after a website form submission.</p>
+            <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+              <Plus className="w-4 h-4" /> Add Lead
+            </button>
+          </div>
         )}
         {leads.map((lead) => {
           const currentIdx = statusFlow.indexOf(lead.status);
@@ -215,12 +241,23 @@ export default function LeadsPage() {
               )}
 
               {lead.audit && (
-                <div className="flex gap-3 mb-3 text-xs text-text-muted bg-surface-2 rounded-lg p-2">
+                <div className="flex gap-3 mb-3 text-xs text-text-muted bg-surface-2 rounded-lg p-2 items-center flex-wrap">
                   <span className={lead.audit.performance > 70 ? "text-accent" : "text-warning"}>
                     ⚡ Perf: {lead.audit.performance}/100
                   </span>
                   <span>🔍 SEO: {lead.audit.seo}/100</span>
                   <span>♿ A11y: {lead.audit.accessibility}/100</span>
+                  <button
+                    onClick={() => copyReportLink(lead.id)}
+                    className="ml-auto flex items-center gap-1 text-[10px] px-2 py-1 bg-primary/10 text-primary rounded border border-primary/20 hover:bg-primary/20 transition-colors"
+                    title="Copy audit report link"
+                  >
+                    {copiedId === lead.id ? (
+                      <><Check className="w-3 h-3" /> Copied!</>
+                    ) : (
+                      <><Copy className="w-3 h-3" /> Copy Report</>
+                    )}
+                  </button>
                 </div>
               )}
 

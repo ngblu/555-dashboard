@@ -91,7 +91,7 @@ export default function SubscriptionsPage() {
   return (
     <div className="space-y-6 relative">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold">Subscriptions</h1><p className="text-text-secondary text-sm mt-1">Monthly maintenance & retainers — create Stripe links, manage billing</p></div>
+        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Repeat className="w-6 h-6 text-primary" /> Subscriptions</h1><p className="text-text-secondary text-sm mt-1">Monthly maintenance &amp; retainers — create Stripe links, manage billing</p></div>
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary/90"><Plus className="w-4 h-4" /> Add</button>
       </div>
 
@@ -99,7 +99,7 @@ export default function SubscriptionsPage() {
         {[{ label: "MRR", val: `$${mrr.toLocaleString()}`, icon: DollarSign, color: "text-accent" },
           { label: "Active Subs", val: String(activeSubs.length), icon: Repeat, color: "text-text-primary" },
           { label: "Avg/Client", val: activeSubs.length ? `$${Math.round(mrr / activeSubs.length)}` : "$0", icon: TrendingUp, color: "text-text-primary" }]
-          .map(s => <div key={s.label} className="bg-surface-2 border border-border rounded-xl p-4">
+          .map(s => <div key={s.label} className="bg-surface-2 border border-border rounded-xl p-4 hover:border-border-bright transition-all duration-300">
             <div className="flex items-center gap-2 text-text-secondary text-xs mb-1"><s.icon className="w-3.5 h-3.5" />{s.label}</div>
             <div className={`text-2xl font-bold ${s.color}`}>{s.val}</div>
           </div>)}

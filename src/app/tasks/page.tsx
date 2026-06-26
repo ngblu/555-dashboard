@@ -44,9 +44,14 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><CheckSquare className="w-6 h-6 text-primary" /> Tasks</h1>
-        <p className="text-text-muted text-sm mt-1">{active.length} active · {done.length} completed</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><CheckSquare className="w-6 h-6 text-primary" /> Tasks</h1>
+          <p className="text-text-muted text-sm mt-1">{active.length} active · {done.length} completed</p>
+        </div>
+        <button onClick={addTask} disabled={!newTitle.trim()} className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          <Plus className="w-4 h-4" /> Add Task
+        </button>
       </div>
 
       {/* Add task */}
@@ -75,8 +80,15 @@ export default function TasksPage() {
 
       {/* Active tasks */}
       <div className="space-y-2">
-        {active.sort((a, b) => ["urgent","high","medium","low"].indexOf(a.priority) - ["urgent","high","medium","low"].indexOf(b.priority)).map(task => (
-          <div key={task.id} className="bg-surface border border-border rounded-lg p-4 flex items-center gap-3 hover:border-border-bright transition-all group">
+        {tasks.length === 0 && (
+          <div className="bg-surface border border-border rounded-xl p-12 text-center">
+            <CheckSquare className="w-10 h-10 text-text-muted mx-auto mb-4" />
+            <h3 className="text-text-primary font-semibold mb-2">No tasks yet</h3>
+            <p className="text-text-muted text-sm max-w-md mx-auto">Use the input above to add your first task. Press Enter to save.</p>
+          </div>
+        )}
+        {active.length > 0 && active.sort((a, b) => ["urgent","high","medium","low"].indexOf(a.priority) - ["urgent","high","medium","low"].indexOf(b.priority)).map(task => (
+          <div key={task.id} className="bg-surface border border-border rounded-xl p-4 flex items-center gap-3 hover:border-border-bright transition-all duration-300 group">
             <button onClick={() => toggleTask(task.id)} className="w-5 h-5 rounded border-2 border-border hover:border-primary transition-colors shrink-0" />
             <span className="text-text-primary text-sm flex-1">{task.title}</span>
             <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${priorityColors[task.priority]}`}>{task.priority}</span>

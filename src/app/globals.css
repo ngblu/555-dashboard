@@ -102,3 +102,14 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* Collapsible sidebar — main content margin responds to CSS variable */
+.main-content {
+  margin-left: 0;
+  transition: margin-left 0.3s ease-out;
+}
+@media (min-width: 1024px) {
+  .main-content {
+    margin-left: var(--sidebar-width, 18rem);
+  }
+}

@@ -9,6 +9,7 @@ import {
   Clock,
   Mail,
   AlertCircle,
+  CheckSquare,
 } from "lucide-react";
 import {
   AreaChart,
@@ -162,6 +163,102 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Today Section */}
+      {(() => {
+        const todayStr = new Date().toISOString().split("T")[0];
+        const todayDate = new Date(todayStr);
+        const weekEnd = new Date(todayDate);
+        weekEnd.setDate(weekEnd.getDate() + 7);
+
+        const tasksDueToday = tasks.filter(t => !t.completed && t.dueDate && t.dueDate.split("T")[0] === todayStr);
+        const staleEmails = emailLogs.filter(e =>
+          (e.status === "sent" || e.status === "opened") &&
+          e.leadId &&
+          (Date.now() - new Date(e.sentAt).getTime()) > 5 * 86400000
+        );
+        const projectsDueThisWeek = projects.filter(p => {
+          if (!p.dueDate || p.status === "completed") return false;
+          const d = new Date(p.dueDate);
+          return d >= todayDate && d <= weekEnd;
+        });
+        const hasTodayItems = tasksDueToday.length > 0 || staleEmails.length > 0 || projectsDueThisWeek.length > 0;
+
+        return (
+          <div className="bg-surface border border-border rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="w-5 h-5 text-primary" />
+              <h2 className="text-sm font-semibold text-text-primary">Today</h2>
+              <span className="text-text-muted text-xs">{new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</span>
+            </div>
+            {!hasTodayItems && (
+              <p className="text-text-muted text-xs">All clear for today. 🎉</p>
+            )}
+            <div className="grid md:grid-cols-3 gap-4">
+              {/* Tasks Due Today */}
+              <div className="bg-surface-2 rounded-lg p-3 border border-border">
+                <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <CheckSquare className="w-3.5 h-3.5 text-primary" /> Tasks Due
+                </h3>
+                {tasksDueToday.length === 0 ? (
+                  <p className="text-text-muted text-xs">None</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {tasksDueToday.map(t => (
+                      <div key={t.id} className="flex items-center gap-2 text-xs">
+                        <span className={`w-1.5 h-1.5 rounded-full ${t.priority === "urgent" ? "bg-danger" : t.priority === "high" ? "bg-warning" : "bg-primary"}`} />
+                        <span className="text-text-primary">{t.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Emails Needing Follow-up */}
+              <div className="bg-surface-2 rounded-lg p-3 border border-border">
+                <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-warning" /> Follow-ups
+                </h3>
+                {staleEmails.length === 0 ? (
+                  <p className="text-text-muted text-xs">None</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {staleEmails.slice(0, 5).map(e => {
+                      const linkedLead = leads.find(l => l.id === e.leadId);
+                      const days = Math.floor((Date.now() - new Date(e.sentAt).getTime()) / 86400000);
+                      return (
+                        <div key={e.id} className="flex items-center justify-between text-xs">
+                          <span className="text-text-primary truncate">{linkedLead?.businessName || e.to}</span>
+                          <span className="text-warning font-medium shrink-0 ml-2">{days}d</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Projects Due This Week */}
+              <div className="bg-surface-2 rounded-lg p-3 border border-border">
+                <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <FolderKanban className="w-3.5 h-3.5 text-secondary" /> Due This Week
+                </h3>
+                {projectsDueThisWeek.length === 0 ? (
+                  <p className="text-text-muted text-xs">None</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {projectsDueThisWeek.map(p => (
+                      <div key={p.id} className="flex items-center justify-between text-xs">
+                        <span className="text-text-primary truncate">{p.name}</span>
+                        <span className="text-text-muted shrink-0 ml-2">{p.dueDate}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Charts + Activity Row */}
       <div className="grid lg:grid-cols-3 gap-6">

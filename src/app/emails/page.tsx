@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Mail, Plus, X, Send, Eye, Reply, Clock, Wand2, Loader2, BarChart3, ExternalLink, TrendingUp, Shield } from "lucide-react";
+import { Mail, Plus, X, Send, Eye, Reply, Clock, Wand2, Loader2, BarChart3, ExternalLink, TrendingUp, Shield, ChevronDown, ChevronUp } from "lucide-react";
 import { useData } from "@/lib/store";
 import { generatePitch } from "@/components/ui/GeneratePitch";
 
@@ -11,6 +11,7 @@ export default function EmailsPage() {
   const [form, setForm] = useState({ leadId: "", to: "", subject: "", body: "", notes: "" });
   const [sending, setSending] = useState<string | null>(null);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Handle prefill from GeneratePitch
   useEffect(() => {
@@ -87,10 +88,10 @@ export default function EmailsPage() {
 
   const statusBadge = (s: string) => {
     const map: Record<string, { color: string; label: string }> = {
-      sent: { color: "bg-blue-500/10 text-blue-400 border-blue-500/20", label: "Sent" },
-      opened: { color: "bg-primary/10 text-primary border-primary/20", label: "Opened" },
-      replied: { color: "bg-accent/10 text-accent border-accent/20", label: "Replied" },
-      bounced: { color: "bg-danger/10 text-danger border-danger/20", label: "Bounced" },
+      sent: { color: "bg-warning/20 text-warning border-warning/30", label: "Sent" },
+      opened: { color: "bg-primary/20 text-primary border-primary/30", label: "Opened" },
+      replied: { color: "bg-accent/20 text-accent border-accent/30", label: "Replied" },
+      bounced: { color: "bg-danger/20 text-danger border-danger/30", label: "Bounced" },
     };
     const m = map[s] || map.sent;
     return <span className={`text-[10px] px-2 py-0.5 rounded border ${m.color}`}>{m.label}</span>;
@@ -238,39 +239,113 @@ export default function EmailsPage() {
           const daysAgo = Math.floor((now - new Date(e.sentAt).getTime()) / 86400000);
           const isStale = (e.status === "sent" || e.status === "opened") && daysAgo >= 5;
           const wasSent = sentIds.has(e.id);
+          const isExpanded = expandedId === e.id;
+          const hasAudit = linkedLead && (linkedLead as any).audit;
           return (
-            <div key={e.id} className={`bg-surface-2 border rounded-xl p-4 group hover:border-border-bright transition-all ${isStale ? "border-warning/30" : "border-border"}`}>
-              <div className="flex items-start gap-3">
-                <Mail className={`w-5 h-5 mt-0.5 shrink-0 ${wasSent ? "text-accent" : e.status === "replied" ? "text-accent" : e.status === "bounced" ? "text-danger" : e.status === "opened" ? "text-primary" : "text-text-muted"}`} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-medium text-sm text-text-primary truncate">{e.subject}</h3>
-                    {statusBadge(e.status)}
-                    {wasSent && <span className="text-[10px] px-2 py-0.5 rounded bg-accent/10 text-accent">✓ Sent via Resend</span>}
-                    {isStale && <span className="text-[10px] px-1.5 py-0.5 bg-warning/10 text-warning rounded font-medium">Follow up</span>}
+            <div key={e.id}>
+              <div className={`bg-surface-2 border rounded-xl p-4 group hover:border-border-bright transition-all ${isStale ? "border-warning/30" : "border-border"} ${isExpanded ? "rounded-b-none border-b-0" : ""}`}>
+                <div className="flex items-start gap-3">
+                  <Mail className={`w-5 h-5 mt-0.5 shrink-0 ${wasSent ? "text-accent" : e.status === "replied" ? "text-accent" : e.status === "bounced" ? "text-danger" : e.status === "opened" ? "text-primary" : "text-text-muted"}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-medium text-sm text-text-primary truncate">{e.subject}</h3>
+                      {statusBadge(e.status)}
+                      {wasSent && <span className="text-[10px] px-2 py-0.5 rounded bg-accent/10 text-accent">✓ Sent via Resend</span>}
+                      {isStale && <span className="text-[10px] px-1.5 py-0.5 bg-warning/10 text-warning rounded font-medium">Follow up</span>}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 text-xs text-text-muted">
+                      <span>{e.to}</span>
+                      <span>·</span>
+                      <span>{daysAgo === 0 ? "Today" : `${daysAgo}d ago`}</span>
+                      {e.openedAt && <span>· Opened</span>}
+                      {linkedLead && <a href="/leads" className="text-primary hover:underline">{linkedLead.businessName}</a>}
+                    </div>
+                    {(e.notes || e.body) && <p className="text-xs text-text-muted mt-1.5 truncate max-w-md">{e.body || e.notes}</p>}
                   </div>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-text-muted">
-                    <span>{e.to}</span>
-                    <span>·</span>
-                    <span>{daysAgo === 0 ? "Today" : `${daysAgo}d ago`}</span>
-                    {e.openedAt && <span>· Opened</span>}
-                    {linkedLead && <a href="/leads" className="text-primary hover:underline">{linkedLead.businessName}</a>}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    {hasAudit && (
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : e.id)}
+                        className="text-xs p-1.5 text-text-muted hover:text-primary rounded hover:bg-primary/10"
+                        title={isExpanded ? "Hide comparison" : "Show audit comparison"}
+                      >
+                        {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                    {e.status === "sent" && (
+                      <button onClick={() => updateStatus(e.id, "opened")} className="text-xs p-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20" title="Mark opened"><Eye className="w-3.5 h-3.5" /></button>
+                    )}
+                    {(e.status === "sent" || e.status === "opened") && (
+                      <button onClick={() => updateStatus(e.id, "replied")} className="text-xs p-1.5 bg-accent/10 text-accent rounded hover:bg-accent/20" title="Mark replied"><Reply className="w-3.5 h-3.5" /></button>
+                    )}
+                    <button onClick={() => handleActualSend(e)} disabled={sending === e.id} className="text-xs p-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20" title="Actually send via email">
+                      {sending === e.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    </button>
+                    <button onClick={() => setEmailLogs((prev: any[]) => prev.filter((x: any) => x.id !== e.id))} className="text-xs p-1.5 text-text-muted hover:text-danger rounded hover:bg-danger/10"><X className="w-3.5 h-3.5" /></button>
                   </div>
-                  {(e.notes || e.body) && <p className="text-xs text-text-muted mt-1.5 truncate max-w-md">{e.body || e.notes}</p>}
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  {e.status === "sent" && (
-                    <button onClick={() => updateStatus(e.id, "opened")} className="text-xs p-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20" title="Mark opened"><Eye className="w-3.5 h-3.5" /></button>
-                  )}
-                  {(e.status === "sent" || e.status === "opened") && (
-                    <button onClick={() => updateStatus(e.id, "replied")} className="text-xs p-1.5 bg-accent/10 text-accent rounded hover:bg-accent/20" title="Mark replied"><Reply className="w-3.5 h-3.5" /></button>
-                  )}
-                  <button onClick={() => handleActualSend(e)} disabled={sending === e.id} className="text-xs p-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20" title="Actually send via email">
-                    {sending === e.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                  </button>
-                  <button onClick={() => setEmailLogs((prev: any[]) => prev.filter((x: any) => x.id !== e.id))} className="text-xs p-1.5 text-text-muted hover:text-danger rounded hover:bg-danger/10"><X className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
+
+              {/* Expandable Audit Comparison */}
+              {isExpanded && hasAudit && (
+                <div className="bg-surface-2 border border-border border-t-0 rounded-b-xl p-4 animate-slide-in">
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Their Audit */}
+                    <div className="bg-surface border border-border rounded-lg p-4">
+                      <h4 className="text-xs uppercase tracking-wider text-text-muted mb-3 font-semibold flex items-center gap-2">
+                        <BarChart3 className="w-3.5 h-3.5 text-warning" /> {(linkedLead as any).website || "Their Site"}
+                      </h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-text-muted">Perf</span>
+                          <span className={(linkedLead as any).audit.performance > 70 ? "text-accent" : (linkedLead as any).audit.performance > 40 ? "text-warning" : "text-danger"}>{(linkedLead as any).audit.performance}/100</span>
+                        </div>
+                        <div className="w-full h-1 bg-surface-2 rounded-full"><div className="h-full bg-warning rounded-full" style={{ width: `${(linkedLead as any).audit.performance}%` }} /></div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-text-muted">SEO</span>
+                          <span className={(linkedLead as any).audit.seo > 70 ? "text-accent" : (linkedLead as any).audit.seo > 40 ? "text-warning" : "text-danger"}>{(linkedLead as any).audit.seo}/100</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-text-muted">A11y</span>
+                          <span className={(linkedLead as any).audit.accessibility > 70 ? "text-accent" : (linkedLead as any).audit.accessibility > 40 ? "text-warning" : "text-danger"}>{(linkedLead as any).audit.accessibility}/100</span>
+                        </div>
+                        {(linkedLead as any).audit.fcp && <div className="flex justify-between text-xs"><span className="text-text-muted">FCP</span><span className="text-text-secondary">{(linkedLead as any).audit.fcp}</span></div>}
+                      </div>
+                    </div>
+
+                    {/* 555 Digital Comparison */}
+                    <div className="bg-accent/5 border border-accent/20 rounded-lg p-4">
+                      <h4 className="text-xs uppercase tracking-wider text-text-muted mb-3 font-semibold flex items-center gap-2">
+                        <TrendingUp className="w-3.5 h-3.5 text-accent" /> After 555 Digital
+                      </h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-text-muted">Perf</span>
+                          <span className="text-accent">95-100</span>
+                        </div>
+                        <div className="w-full h-1 bg-surface-2 rounded-full"><div className="h-full bg-accent rounded-full" style={{ width: "96%" }} /></div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-text-muted">SEO</span>
+                          <span className="text-accent">90-98</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-text-muted">A11y</span>
+                          <span className="text-accent">95+</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-text-muted">Load</span>
+                          <span className="text-accent">&lt;1s</span>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-accent/10">
+                          <a href="https://pyburn-plumbing.vercel.app" target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1">
+                            <ExternalLink className="w-3 h-3" /> See a live example →
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw, ExternalLink, Loader2, CheckCircle2, Wrench } from "lucide-react";
+import { RefreshCw, ExternalLink, Loader2, CheckCircle2, Wrench, Repeat } from "lucide-react";
 import { useData } from "@/lib/store";
 import Link from "next/link";
 
@@ -67,13 +67,18 @@ export default function MaintenancePage() {
         </div>
       )}
 
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Wrench className="w-6 h-6 text-secondary" /> Maintenance
-        </h1>
-        <p className="text-text-muted text-sm mt-1">
-          Monthly maintenance subscriptions — $99/mo per client
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Wrench className="w-6 h-6 text-secondary" /> Maintenance
+          </h1>
+          <p className="text-text-muted text-sm mt-1">
+            Monthly maintenance subscriptions — $99/mo per client
+          </p>
+        </div>
+        <Link href="/subscriptions" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg text-sm font-medium hover:bg-primary/20 transition-all">
+          <Repeat className="w-4 h-4" /> View Subscriptions
+        </Link>
       </div>
 
       {/* Quick send */}
