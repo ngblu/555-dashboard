@@ -12,6 +12,8 @@
   --color-accent: #00FF88;
   --color-warning: #FFB800;
   --color-danger: #FF4757;
+  --color-torii: #E8302A;
+  --color-sakura: #FFB7C5;
   --color-text-primary: #E8E8F0;
   --color-text-secondary: #9898B0;
   --color-text-muted: #5C5C78;
@@ -20,6 +22,8 @@
   --animate-pulse-glow: pulseGlow 2s ease-in-out infinite;
   --animate-slide-in: slideIn 0.3s ease-out;
   --animate-slide-in-right: slideInRight 0.3s ease-out;
+  --animate-sakura-fall: sakuraFall var(--sakura-duration, 10s) var(--sakura-delay, 0s) linear infinite;
+  --animate-sakura-sway: sakuraSway var(--sakura-sway, 3s) ease-in-out infinite;
 
   @keyframes pulseGlow {
     0%, 100% { box-shadow: 0 0 5px rgba(0,212,255,0.1); }
@@ -33,6 +37,44 @@
     from { opacity: 0; transform: translateX(100%); }
     to { opacity: 1; transform: translateX(0); }
   }
+  @keyframes sakuraFall {
+    0% {
+      transform: translateY(-5vh) translateX(0) rotate(0deg);
+      opacity: 0;
+    }
+    5% {
+      opacity: 0.65;
+    }
+    90% {
+      opacity: 0.45;
+    }
+    100% {
+      transform: translateY(105vh) translateX(var(--sakura-drift, 30px)) rotate(var(--sakura-spin, 360deg));
+      opacity: 0;
+    }
+  }
+  @keyframes sakuraSway {
+    0%, 100% { margin-left: 0; }
+    25% { margin-left: 10px; }
+    75% { margin-left: -10px; }
+  }
+}
+
+/* ── Seigaiha (traditional Japanese wave) pattern ── */
+.seigaiha-bg {
+  background-image:
+    radial-gradient(circle at 0 12px, rgba(0,212,255,0.025) 12px, transparent 13px),
+    radial-gradient(circle at 24px 12px, rgba(0,212,255,0.025) 12px, transparent 13px),
+    radial-gradient(circle at 12px 33px, rgba(0,212,255,0.025) 12px, transparent 13px),
+    radial-gradient(circle at 36px 33px, rgba(0,212,255,0.025) 12px, transparent 13px);
+  background-size: 48px 45px;
+}
+
+/* ── Torii gate red accent bar ── */
+.torii-accent {
+  background: linear-gradient(90deg, transparent 0%, rgba(232,48,42,0.6) 20%, rgba(232,48,42,0.8) 50%, rgba(232,48,42,0.6) 80%, transparent 100%);
+  height: 2px;
+  width: 100%;
 }
 
 html { scroll-behavior: smooth; }

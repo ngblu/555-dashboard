@@ -117,7 +117,7 @@ export default function Sidebar() {
       {/* Sidebar drawer */}
       <aside
         className={`fixed left-0 top-0 bottom-0 z-40 bg-surface border-r border-border flex flex-col transition-transform duration-300 ease-out
-          w-64
+          w-72 seigaiha-bg
           lg:translate-x-0
           ${open ? "translate-x-0" : "-translate-x-full"}
         `}
@@ -126,7 +126,9 @@ export default function Sidebar() {
         }}
       >
         {/* Logo + close */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-border">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-border relative">
+          {/* Torii gate red accent — top bar */}
+          <div className="absolute top-0 left-0 right-0 torii-accent" />
           <Link href="/" onClick={close} className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center relative overflow-hidden">
               <span className="text-primary font-extrabold text-sm">5</span>
@@ -137,13 +139,16 @@ export default function Sidebar() {
               <span className="text-text-secondary text-[10px] ml-1">コマンド</span>
             </div>
           </Link>
-          <button
-            onClick={close}
-            className="lg:hidden w-10 h-10 rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
-            aria-label="Close menu"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <span className="text-[#E8302A]/40 text-xs font-bold select-none" title="金 (gold)">金</span>
+            <button
+              onClick={close}
+              className="lg:hidden w-10 h-10 rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Nav */}
@@ -152,7 +157,12 @@ export default function Sidebar() {
         </nav>
 
         {/* Koi Pond */}
-        <div className="px-3 pb-3 flex justify-center">
+        <div className="px-3 pb-3 flex flex-col items-center gap-1.5">
+          <div className="flex items-center gap-2 w-full max-w-[200px]">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/15 to-transparent" />
+            <span className="text-[10px] text-text-muted tracking-widest uppercase select-none">錦鯉</span>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/15 to-transparent" />
+          </div>
           <KoiPond />
         </div>
 
@@ -163,7 +173,7 @@ export default function Sidebar() {
       </aside>
 
       {/* Desktop spacer so content doesn't overlap fixed sidebar */}
-      <div className="hidden lg:block w-64 shrink-0" />
+      <div className="hidden lg:block w-72 shrink-0" />
     </>
   );
 }

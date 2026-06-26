@@ -3,9 +3,11 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import PWARegister from "@/components/layout/PWARegister";
+import AmbientPond from "@/components/ui/AmbientPond";
 import { DataProvider } from "@/lib/store";
 import QuickAdd from "@/components/ui/QuickAdd";
 import CommandPalette from "@/components/ui/CommandPalette";
+import SakuraPetals from "@/components/ui/SakuraPetals";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -31,9 +33,11 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.svg" />
       </head>
       <body className="min-h-full bg-background text-text-primary">
+        <AmbientPond />
+        <SakuraPetals />
         <DataProvider>
           <Sidebar />
-          <main className="ml-0 lg:ml-64 min-h-screen p-3 md:p-6 transition-all">
+          <main className="ml-0 lg:ml-72 min-h-screen p-3 md:p-6 transition-all">
             {children}
           </main>
           <QuickAdd />

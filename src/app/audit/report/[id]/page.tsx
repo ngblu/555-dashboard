@@ -40,7 +40,7 @@ export default function AuditReportPage() {
     const style = document.createElement("style");
     style.id = "report-standalone";
     style.textContent = `
-      aside[class*="fixed left-0"], .hidden.lg\\:block.w-64, button[data-quick-add-fab], main.ml-64 { display: none !important; }
+      aside[class*="fixed left-0"], .hidden.lg\\:block.w-72, button[data-quick-add-fab], main.ml-72 { display: none !important; }
       body > div:first-child > main { margin-left: 0 !important; padding: 0 !important; }
       html, body { overflow-x: hidden; }
     `;
