@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { ExternalLink, Loader2, AlertTriangle } from "lucide-react";
 
 interface AuditData {
@@ -32,6 +32,7 @@ interface AuditData {
 export default function AuditReportPage() {
   const params = useParams();
   const id = params.id as string;
+  const searchParams = useSearchParams();
   const [audit, setAudit] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -49,12 +50,26 @@ export default function AuditReportPage() {
   }, []);
 
   useEffect(() => {
+    // Try URL-encoded data first (works on any device, no server needed)
+    const encoded = searchParams.get("d");
+    if (encoded) {
+      try {
+        const json = decodeURIComponent(atob(encoded));
+        const data = JSON.parse(json);
+        if (data.result) {
+          setAudit(data);
+          setLoading(false);
+          return;
+        }
+      } catch {}
+    }
+    // Fall back to server API
     fetch(`/api/audit/${id}`)
       .then(r => r.json())
       .then(data => setAudit(data.audit || null))
       .catch(() => setAudit(null))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, searchParams]);
 
   if (loading) {
     return (

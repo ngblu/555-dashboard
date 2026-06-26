@@ -598,7 +598,10 @@ Audit by 555 Digital · https://555digital.dev
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        const reportUrl = `${window.location.origin}/audit/report/${a.id}`;
+                        // Encode audit into URL so it works on any device
+                        const payload = JSON.stringify(a);
+                        const encoded = btoa(encodeURIComponent(payload));
+                        const reportUrl = `${window.location.origin}/audit/report/${a.id}?d=${encoded}`;
                         navigator.clipboard.writeText(reportUrl);
                         alert("Report link copied!\n\n" + reportUrl);
                       }}

@@ -452,6 +452,7 @@ export default function KoiPond() {
           style={{
             animation: "swimKoi2 14s ease-in-out infinite",
             transformOrigin: "0px 0px",
+            willChange: "transform",
           }}
         >
           <use href="#koiWhiteShape" />
@@ -464,6 +465,7 @@ export default function KoiPond() {
           style={{
             animation: "swimKoi3 20s ease-in-out infinite",
             transformOrigin: "0px 0px",
+            willChange: "transform",
           }}
         >
           <g transform="scale(0.65)">
