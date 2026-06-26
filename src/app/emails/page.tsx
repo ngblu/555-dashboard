@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Mail, Plus, X, Send, Eye, Reply, Clock, Wand2, Loader2 } from "lucide-react";
+import { Mail, Plus, X, Send, Eye, Reply, Clock, Wand2, Loader2, BarChart3, ExternalLink, TrendingUp, Shield } from "lucide-react";
 import { useData } from "@/lib/store";
 import { generatePitch } from "@/components/ui/GeneratePitch";
 
@@ -148,6 +148,75 @@ export default function EmailsPage() {
               </button>
             )}
           </div>
+
+          {/* Audit Preview + Comparison */}
+          {form.leadId && (() => {
+            const lead = leads.find((l: any) => l.id === form.leadId);
+            if (!lead) return null;
+            const audit = lead.audit;
+            const hasSite = !!lead.website;
+            return (
+              <div className="grid grid-cols-2 gap-3">
+                {/* Their Audit */}
+                <div className="bg-surface border border-border rounded-lg p-4">
+                  <h4 className="text-xs uppercase tracking-wider text-text-muted mb-3 font-semibold flex items-center gap-2">
+                    <BarChart3 className="w-3.5 h-3.5 text-warning" /> {lead.website || "Their Site"}
+                  </h4>
+                  {audit ? (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-text-muted">Perf</span>
+                        <span className={audit.performance > 70 ? "text-accent" : audit.performance > 40 ? "text-warning" : "text-danger"}>{audit.performance}/100</span>
+                      </div>
+                      <div className="w-full h-1 bg-surface-2 rounded-full"><div className="h-full bg-warning rounded-full" style={{ width: `${audit.performance}%` }} /></div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-text-muted">SEO</span>
+                        <span className={audit.seo > 70 ? "text-accent" : audit.seo > 40 ? "text-warning" : "text-danger"}>{audit.seo}/100</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-text-muted">A11y</span>
+                        <span className={audit.accessibility > 70 ? "text-accent" : audit.accessibility > 40 ? "text-warning" : "text-danger"}>{audit.accessibility}/100</span>
+                      </div>
+                      {audit.fcp && <div className="flex justify-between text-xs"><span className="text-text-muted">FCP</span><span className="text-text-secondary">{audit.fcp}</span></div>}
+                    </div>
+                  ) : (
+                    <p className="text-text-muted text-xs">No audit yet. <a href="/audit" className="text-primary hover:underline">Run one</a></p>
+                  )}
+                </div>
+
+                {/* 555 Digital Comparison */}
+                <div className="bg-accent/5 border border-accent/20 rounded-lg p-4">
+                  <h4 className="text-xs uppercase tracking-wider text-text-muted mb-3 font-semibold flex items-center gap-2">
+                    <TrendingUp className="w-3.5 h-3.5 text-accent" /> After 555 Digital
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-text-muted">Perf</span>
+                      <span className="text-accent">95-100</span>
+                    </div>
+                    <div className="w-full h-1 bg-surface-2 rounded-full"><div className="h-full bg-accent rounded-full" style={{ width: "96%" }} /></div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-text-muted">SEO</span>
+                      <span className="text-accent">90-98</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-text-muted">A11y</span>
+                      <span className="text-accent">95+</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-text-muted">Load</span>
+                      <span className="text-accent">&lt;1s</span>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-accent/10">
+                      <a href="https://pyburn-plumbing.vercel.app" target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" /> See a live example →
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           <input placeholder="To: email address" className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted" value={form.to} onChange={e => setForm({ ...form, to: e.target.value })} />
           <input placeholder="Subject line" className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted" value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} />
           <textarea placeholder="Email body (generated pitch goes here, or write your own)" className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted h-32 resize-none" value={form.body} onChange={e => setForm({ ...form, body: e.target.value })} />
