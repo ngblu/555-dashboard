@@ -86,7 +86,9 @@ export default function QuickAdd() {
           completed: false,
           dueDate: "",
           createdAt: new Date().toISOString(),
-        },
+          taskType: "manual" as const,
+          messages: [] as any[],
+        } as any,
         ...prev,
       ]);
       addNotification(`Task created: ${title.trim()}`, "info", `/tasks`);

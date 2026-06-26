@@ -100,6 +100,15 @@ export interface Project {
 
 export type Priority = "low" | "medium" | "high" | "urgent";
 
+export type TaskType = "manual" | "ai_build" | "ai_audit" | "ai_email" | "ai_research";
+
+export interface TaskMessage {
+  id: string;
+  author: "user" | "ai";
+  text: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -108,6 +117,10 @@ export interface Task {
   completed: boolean;
   dueDate?: string;
   createdAt: string;
+  taskType: TaskType;
+  messages: TaskMessage[];
+  aiContext?: string;  // extra context for AI tasks
+  result?: string;     // link or summary of what was built
 }
 
 export interface Revenue {
