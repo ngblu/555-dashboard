@@ -142,6 +142,7 @@ export default function LeadsPage() {
   }, []);
 
   function mergeServerLeads(serverLeadsRaw: Record<string, unknown>[]) {
+    const validSources = ["website", "manual", "page2_audit", "automated"];
     const serverLeads = serverLeadsRaw.map((l) => ({
       id: String(l.id || ""),
       businessName: String(l.businessName || l.name || ""),
@@ -150,10 +151,10 @@ export default function LeadsPage() {
       contactEmail: String(l.contactEmail || l.email || ""),
       phone: String(l.phone || ""),
       notes: String(l.notes || l.message || ""),
-      source: String(l.source || "page2_audit"),
+      source: (validSources.includes(String(l.source || "")) ? String(l.source) : "page2_audit") as "website" | "manual" | "page2_audit" | "automated",
       status: (l.status as LeadStatus) || "found",
       audit: (l.audit as AuditMetrics | null) || null,
-      issues: [],
+      issues: [] as string[],
       createdAt: String(l.createdAt || new Date().toISOString()),
     }));
     setLeads((prev) => {
@@ -209,10 +210,10 @@ export default function LeadsPage() {
                 contactEmail: String(l.contactEmail || l.email || ""),
                 phone: String(l.phone || ""),
                 notes: String(l.notes || l.message || ""),
-                source: String(l.source || "page2_audit"),
+                source: (["website","manual","page2_audit","automated"].includes(String(l.source||"")) ? String(l.source) : "page2_audit") as "website"|"manual"|"page2_audit"|"automated",
                 status: (l.status as LeadStatus) || "found",
                 audit: (l.audit as AuditMetrics | null) || null,
-                issues: [],
+                issues: [] as string[],
                 createdAt: String(l.createdAt || new Date().toISOString()),
               }));
               setLeads((prev) => {
