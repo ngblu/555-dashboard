@@ -28,11 +28,28 @@ const corsHeaders = {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, email, website, budget, message } = body;
+    const {
+      name,
+      businessName,
+      email,
+      contactEmail,
+      website,
+      budget,
+      message,
+      phone,
+      industry,
+      source,
+      notes,
+      audit,
+    } = body;
 
-    // Run PageSpeed audit if website URL provided
-    let auditData = null;
-    if (website) {
+    // Normalize: support both name/businessName and email/contactEmail
+    const bizName = (businessName || name || "Unknown").trim();
+    const contact = (contactEmail || email || "").trim();
+
+    // Run PageSpeed audit if website URL provided and no audit data passed
+    let auditData = audit || null;
+    if (website && !auditData) {
       try {
         let targetUrl = website.trim();
         if (!targetUrl.startsWith("http")) targetUrl = "https://" + targetUrl;
@@ -41,7 +58,7 @@ export async function POST(req: NextRequest) {
         const keyParam = apiKey ? `&key=${apiKey}` : "";
         const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(
           targetUrl
-        )}&strategy=mobile&category=PERFORMANCE&category=SEO${keyParam}`;
+        )}&strategy=mobile&category=PERFORMANCE&category=SEO&category=ACCESSIBILITY&category=BEST_PRACTICES${keyParam}`;
         const auditRes = await fetch(apiUrl, {
           signal: AbortSignal.timeout(25000),
         });
@@ -49,16 +66,25 @@ export async function POST(req: NextRequest) {
         if (auditRes.ok) {
           const data = await auditRes.json();
           const lh = data.lighthouseResult;
+          const cats = lh.categories || {};
+          const audits = lh.audits || {};
           auditData = {
-            performance: Math.round(
-              (lh.categories?.performance?.score ?? 0) * 100
-            ),
-            seo: Math.round((lh.categories?.seo?.score ?? 0) * 100),
-            fcp:
-              lh.audits?.["first-contentful-paint"]?.displayValue ?? "N/A",
-            lcp:
-              lh.audits?.["largest-contentful-paint"]?.displayValue ?? "N/A",
-            speedIndex: lh.audits?.["speed-index"]?.displayValue ?? "N/A",
+            url: targetUrl,
+            fetchedAt: new Date().toISOString(),
+            strategy: "mobile",
+            performance: Math.round((cats.performance?.score ?? 0) * 100),
+            seo: Math.round((cats.seo?.score ?? 0) * 100),
+            accessibility: Math.round((cats.accessibility?.score ?? 0) * 100),
+            bestPractices: Math.round((cats["best-practices"]?.score ?? 0) * 100),
+            fcp: audits["first-contentful-paint"]?.displayValue ?? "N/A",
+            lcp: audits["largest-contentful-paint"]?.displayValue ?? "N/A",
+            cls: audits["cumulative-layout-shift"]?.displayValue ?? "N/A",
+            tbt: audits["total-blocking-time"]?.displayValue ?? "N/A",
+            speedIndex: audits["speed-index"]?.displayValue ?? "N/A",
+            ttfb: audits["server-response-time"]?.displayValue ?? "N/A",
+            mobileFriendly: (cats.performance?.score ?? 0) > 0.5,
+            issues: [],
+            opportunities: [],
           };
         }
       } catch {
@@ -68,20 +94,26 @@ export async function POST(req: NextRequest) {
 
     const lead = {
       id: "lead_" + Date.now(),
-      name,
-      email,
+      businessName: bizName,
+      name: bizName,
+      email: contact,
+      contactEmail: contact,
       website: website || "",
+      phone: phone || "",
+      industry: industry || "",
+      source: source || "website",
+      notes: notes || message || "",
       budget: budget || "",
       message: message || "",
       audit: auditData,
-      status: "new",
+      status: "found",
       createdAt: new Date().toISOString(),
     };
 
     // Persist to /tmp file
     const leads = readLeads();
     leads.unshift(lead);
-    writeLeads(leads.slice(0, 100)); // Keep last 100
+    writeLeads(leads.slice(0, 100));
 
     // Try email notification
     const resendKey = process.env.RESEND_API_KEY;
@@ -97,16 +129,18 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             from: "555 Digital <onboarding@resend.dev>",
             to: notifyEmail,
-            subject: `New Lead: ${name} · ${website || "No website"}`,
-            html: `<h2>New Audit Request</h2>
-<p><strong>Name:</strong> ${name}</p>
-<p><strong>Email:</strong> ${email}</p>
+            subject: `New Lead: ${bizName} - ${website || "No website"}`,
+            html: `<h2>New Lead</h2>
+<p><strong>Business:</strong> ${bizName}</p>
+<p><strong>Email:</strong> ${contact || "None"}</p>
+<p><strong>Phone:</strong> ${phone || "None"}</p>
 <p><strong>Website:</strong> ${website || "None"}</p>
-<p><strong>Budget:</strong> ${budget || "Not specified"}</p>
-<p><strong>Message:</strong> ${message || "None"}</p>
+<p><strong>Industry:</strong> ${industry || "N/A"}</p>
+<p><strong>Source:</strong> ${source || "unknown"}</p>
+<p><strong>Notes:</strong> ${notes || message || "None"}</p>
 ${
   auditData
-    ? `<h3>Auto-Audit</h3><p>Performance: ${auditData.performance}/100 | SEO: ${auditData.seo}/100 | FCP: ${auditData.fcp} | LCP: ${auditData.lcp}</p>`
+    ? `<h3>Audit Scores</h3><p>Performance: ${auditData.performance}/100 | SEO: ${auditData.seo}/100 | A11y: ${auditData.accessibility}/100 | Best Practices: ${auditData.bestPractices}/100</p>`
     : "<p>No audit data</p>"
 }`,
           }),
