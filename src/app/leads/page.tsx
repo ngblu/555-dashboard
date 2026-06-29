@@ -71,7 +71,7 @@ function sourceBadge(source: string | undefined) {
 }
 
 export default function LeadsPage() {
-  const { leads, setLeads, convertLeadToClient, convertLeadToProject, addNotification, addNotifications } = useData();
+  const { leads, setLeads, convertLeadToClient, convertLeadToProject, addNotification } = useData();
   const [showForm, setShowForm] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -219,9 +219,9 @@ export default function LeadsPage() {
                 const existingIds = new Set(prev.map((p) => p.id));
                 const newOnes = serverLeads.filter((sl: {id: string}) => !existingIds.has(sl.id));
                 if (newOnes.length > 0) {
-                  addNotifications(newOnes.map((nl: {businessName: string}) => 
-                    ({ message: `New lead found: ${nl.businessName}`, type: "success" as const, link: "/leads" })
-                  ));
+                  newOnes.forEach((nl: {businessName: string}) => 
+                    addNotification(`New lead found: ${nl.businessName}`, "success", "/leads")
+                  );
                 }
                 return [...newOnes, ...prev];
               });
