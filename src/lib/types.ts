@@ -37,12 +37,16 @@ export interface Lead {
   issues: string[];
   status: LeadStatus;
   contactEmail: string;
+  phone?: string;
   notes: string;
   audit?: AuditMetrics | null;
-  source?: "manual" | "website";
+  source?: "manual" | "website" | "page2_audit" | "automated";
   createdAt: string;
   // set once converted so we don't double-convert
   convertedClientId?: string;
+  // lead scoring
+  score?: number;
+  classification?: "hot" | "warm" | "cold";
 }
 
 export interface SavedAudit {

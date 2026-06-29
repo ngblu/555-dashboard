@@ -5,11 +5,12 @@ import {
   Crosshair, Plus, X, ArrowRight, UserCheck, Rocket, ChevronRight,
   Copy, Check, ChevronDown, ExternalLink, Phone, Globe, BarChart3,
   Search, Gauge, Eye, Shield, Zap, Clock, Timer, Smartphone,
-  Play, RefreshCw,
+  Play, RefreshCw, Zap, MapPin,
 } from "lucide-react";
 import { useData } from "@/lib/store";
 import type { LeadStatus, AuditMetrics } from "@/lib/types";
 import GeneratePitchButton from "@/components/ui/GeneratePitch";
+import TargetsManager from "@/components/leads/TargetsManager";
 
 const statusFlow: LeadStatus[] = ["found", "audited", "emailed", "replied", "converted"];
 
@@ -77,6 +78,8 @@ export default function LeadsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [runningFinder, setRunningFinder] = useState(false);
   const [finderStatus, setFinderStatus] = useState<string>("");
+  const [showTargets, setShowTargets] = useState(false);
+  const [scoring, setScoring] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [form, setForm] = useState({
     businessName: "",
@@ -156,11 +159,19 @@ export default function LeadsPage() {
       audit: (l.audit as AuditMetrics | null) || null,
       issues: [] as string[],
       createdAt: String(l.createdAt || new Date().toISOString()),
+      score: typeof l.score === "number" ? l.score : undefined,
+      classification: (l.classification as "hot" | "warm" | "cold") || undefined,
     }));
     setLeads((prev) => {
       const existingIds = new Set(prev.map((p) => p.id));
       const newOnes = serverLeads.filter((sl) => !existingIds.has(sl.id));
-      return [...newOnes, ...prev];
+      // Sort: hot first, then warm, then cold, then unscored
+      return [...newOnes, ...prev].sort((a, b) => {
+        const order = { hot: 0, warm: 1, cold: 2 };
+        const aOrd = a.classification ? (order[a.classification] ?? 3) : 3;
+        const bOrd = b.classification ? (order[b.classification] ?? 3) : 3;
+        return aOrd - bOrd;
+      });
     });
   }
 
@@ -270,6 +281,27 @@ export default function LeadsPage() {
     }
   };
 
+  const runScorer = async () => {
+    setScoring(true);
+    try {
+      const res = await fetch("http://localhost:5555/api/lead-finder/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer 555-remote-bridge" },
+      });
+      const data = await res.json();
+      if (data.status === "ok") {
+        addNotification("Leads scored! Hot prospects at the top.", "success");
+        // Reload leads from server to get scores
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        addNotification("Scoring: " + (data.output || "completed"), "info");
+      }
+    } catch {
+      addNotification("Cannot reach bridge for scoring.", "error");
+    }
+    setScoring(false);
+  };
+
   const advanceStatus = (leadId: string, currentStatus: LeadStatus) => {
     const idx = statusFlow.indexOf(currentStatus);
     if (idx < statusFlow.length - 1) {
@@ -344,6 +376,24 @@ export default function LeadsPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowTargets(!showTargets)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
+              showTargets ? "bg-primary/10 text-primary border-primary/30" : "bg-surface text-text-secondary border-border hover:border-border-bright"
+            }`}
+          >
+            <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Targets</span>
+          </button>
+          <button
+            onClick={runScorer}
+            disabled={scoring}
+            className="flex items-center gap-1.5 px-3 py-2 bg-warning/15 text-warning border border-warning/30 rounded-lg text-xs sm:text-sm font-medium hover:bg-warning/25 transition-colors disabled:opacity-50"
+            title="Score all leads"
+          >
+            {scoring ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">Score</span>
+          </button>
+          <button
             onClick={runLeadFinder}
             disabled={runningFinder}
             className="flex items-center gap-1.5 px-3 py-2 bg-accent/15 text-accent border border-accent/30 rounded-lg text-xs sm:text-sm font-medium hover:bg-accent/25 transition-colors disabled:opacity-50"
@@ -373,6 +423,9 @@ export default function LeadsPage() {
           {finderStatus}
         </div>
       )}
+
+      {/* Targets Manager */}
+      {showTargets && <TargetsManager />}
 
       {/* Add form */}
       {showForm && (
@@ -495,6 +548,17 @@ export default function LeadsPage() {
                     {lead.industry && (
                       <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 bg-surface-2 rounded text-text-muted">
                         {lead.industry}
+                      </span>
+                    )}
+                    {lead.classification && (
+                      <span className={`text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border ${
+                        lead.classification === "hot" ? "bg-danger/15 text-danger border-danger/30" :
+                        lead.classification === "warm" ? "bg-warning/15 text-warning border-warning/30" :
+                        "bg-surface-2 text-text-muted border-border"
+                      }`}>
+                        {lead.classification === "hot" ? "🔥" : lead.classification === "warm" ? "⭐" : "❄️"}{" "}
+                        {lead.classification}
+                        {lead.score != null && <span className="ml-0.5 opacity-70">{lead.score}</span>}
                       </span>
                     )}
                   </div>
