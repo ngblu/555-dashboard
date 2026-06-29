@@ -5,7 +5,7 @@ import {
   Crosshair, Plus, X, ArrowRight, UserCheck, Rocket, ChevronRight,
   Copy, Check, ChevronDown, ExternalLink, Phone, Globe, BarChart3,
   Search, Gauge, Eye, Shield, Zap, Clock, Timer, Smartphone,
-  Play, RefreshCw, Zap, MapPin,
+  Play, RefreshCw, MapPin,
 } from "lucide-react";
 import { useData } from "@/lib/store";
 import type { LeadStatus, AuditMetrics } from "@/lib/types";
