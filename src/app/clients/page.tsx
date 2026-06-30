@@ -102,7 +102,7 @@ export default function ClientsPage() {
             <Users className="w-6 h-6 text-primary" /> Clients
           </h1>
           <p className="text-text-muted text-sm mt-1">
-            {clients.length} total — ${totalValue.toLocaleString()} in value
+            {clients.length} total, ${totalValue.toLocaleString()} in value
           </p>
         </div>
         <button

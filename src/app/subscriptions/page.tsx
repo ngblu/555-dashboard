@@ -91,7 +91,7 @@ export default function SubscriptionsPage() {
   return (
     <div className="space-y-6 relative">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Repeat className="w-6 h-6 text-primary" /> Subscriptions</h1><p className="text-text-secondary text-sm mt-1">Monthly maintenance &amp; retainers — create Stripe links, manage billing</p></div>
+        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Repeat className="w-6 h-6 text-primary" /> Subscriptions</h1><p className="text-text-secondary text-sm mt-1">Monthly maintenance &amp; retainers, create Stripe links, manage billing</p></div>
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary/90"><Plus className="w-4 h-4" /> Add</button>
       </div>
 

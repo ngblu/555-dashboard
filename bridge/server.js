@@ -699,6 +699,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === "/api/lead-finder/status" && req.method === "GET") {
+    if (!checkAuth(req, res)) return;
     return jsonReply(req, res, 200, {
       running: _finderRunning,
       lastRun: _finderLastRun,
@@ -785,6 +786,72 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // ── Pitch Generator: generate personalized pitch for a lead ──
+  if (url.pathname === "/api/lead-finder/pitch" && req.method === "POST") {
+    if (!checkAuth(req, res)) return;
+    const body = await readBody(req);
+    
+    // Validate required fields
+    if (!body.businessName || typeof body.businessName !== "string" || !body.businessName.trim()) {
+      return jsonReply(req, res, 400, { error: "Missing or invalid 'businessName' field" });
+    }
+    
+    const { businessName, website, industry, auditScores, issues } = body;
+    
+    const name = "there";
+    const domain = (website || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+    const ind = industry || "business";
+    const perf = auditScores && auditScores.performance !== undefined ? auditScores.performance : undefined;
+    const seo = auditScores && auditScores.seo !== undefined ? auditScores.seo : undefined;
+
+    // Build score lines
+    var scoreLines = "";
+    if (perf !== undefined) {
+      var perfMsg = perf < 50 ? "this is what makes people leave before your site even loads" : perf < 70 ? "room to improve here" : "looking solid";
+      var s = seo != null ? seo : 0;
+      var seoMsg = s < 50 ? "you're probably not showing up on Google for people searching your services" : s < 70 ? "decent, but we can push this higher" : "pretty good";
+      scoreLines = "  Performance score: " + perf + "/100, " + perfMsg + "\n  SEO score: " + seo + "/100, " + seoMsg;
+    }
+    var issueLines = "";
+    if (issues && issues.length > 0) {
+      for (var ii = 0; ii < Math.min(issues.length, 3); ii++) {
+        issueLines += "  " + issues[ii] + "\n";
+      }
+    }
+
+    var templates = [
+      "Subject: Quick website audit for " + (domain || businessName) + "\n\n" +
+      "Hi there,\n\n" +
+      "I ran a quick audit on " + (domain || "your website") + " and found a few things that might be costing you customers.\n\n" +
+      scoreLines + "\n" +
+      issueLines + "\n" +
+      "I'm Noah, I run 555 Digital, I find " + ind + " businesses with outdated websites and rebuild them so they actually bring in calls and bookings. I'd love to do a free audit report for you, no strings attached, and walk you through what I'd fix.\n\n" +
+      "Want me to send the full report over?\n\n" +
+      "Best,\nNoah\n555 Digital",
+
+      "Subject: Your website and why your phone isn't ringing\n\n" +
+      "Hey there,\n\n" +
+      "Quick one, I looked at " + (domain || "your site") + " and " + (perf && perf < 50 ? "it's loading pretty slow, which means people are leaving before they even see what you do" : "there are some things we could tighten up to get more calls from it") + ".\n\n" +
+      "I run a small web studio called 555 Digital. I work specifically with " + ind + " businesses, I audit their sites, show them what's costing them customers, and rebuild everything so their phone actually rings.\n\n" +
+      "Free audit, zero pressure. Takes 2 minutes. Want me to send it over?\n\n" +
+      "Noah\n555 Digital",
+
+      "Subject: Found some issues on " + (domain || "your website") + "\n\n" +
+      "Hi there,\n\n" +
+      "I run 555 Digital, a small web studio that helps " + ind + " businesses turn their websites into actual customer pipelines.\n\n" +
+      "I took a look at " + (domain || "your site") + ", " + (perf !== undefined ? "your performance score is " + perf + "/100, which means " + (perf < 50 ? "you're losing visitors before the page finishes loading" : "there's room to improve load times and conversions") + ". " : "") + (seo !== undefined ? "Your SEO is at " + seo + "/100" + (seo < 60 ? ", which means people searching for your services in your area probably aren't finding you" : "") + "." : "") + "\n\n" +
+      "I'd love to send you a full audit report, it's free and takes me about 2 minutes. No pitch, no pressure. Just useful info about your site.\n\n" +
+      "Interested?\n\n" +
+      "Noah\n555 Digital"
+    ];
+
+    const pitch = templates[Math.floor(Math.random() * templates.length)];
+    const subject = pitch.split("\n")[0].replace("Subject: ", "");
+    const pitchBody = pitch.split("\n").slice(1).join("\n").trim();
+
+    return jsonReply(req, res, 200, { subject, body: pitchBody, pitch });
+  }
+
   // ── 404 ─────────────────────────────────────────────────────
   else {
     jsonReply(req, res, 404, { error: "Not found" });
@@ -801,6 +868,15 @@ server.listen(PORT, "127.0.0.1", () => {
   console.log(`     GET  /api/health            — health check`);
   console.log(`     POST /api/control           — execute desktop action`);
   console.log(`     GET  /api/control/screenshot — capture screen PNG`);
+});
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`[FATAL] Port ${PORT} is already in use. Another bridge instance may be running.`);
+    console.error("        Run: taskkill /F /PID <pid>  or  netstat -ano | findstr :5555");
+    process.exit(1);
+  }
+  throw err;
 });
 
 

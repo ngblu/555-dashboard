@@ -409,11 +409,51 @@ export function DataProvider({ children }: { children: ReactNode }) {
       leadId: string,
       opts?: { name?: string; tier?: string; value?: number; dueDate?: string }
     ) => {
-      const clientId = convertLeadToClient(leadId, opts?.value ?? 0);
-      const projectId = createProjectForClient(clientId, opts);
+      const projectId = uid("p_");
+      const clientId = uid("c_");
+      setStore((prev) => {
+        const lead = prev.leads.find((l) => l.id === leadId);
+        if (!lead) return prev;
+        const value = opts?.value ?? 0;
+        // Create client from lead
+        const client: Client = {
+          id: clientId,
+          name: lead.businessName,
+          business: lead.businessName,
+          email: lead.contactEmail || "",
+          phone: lead.phone || "",
+          website: lead.website || "",
+          value,
+          notes: lead.notes || "",
+          createdAt: new Date().toISOString(),
+          fromLeadId: lead.id,
+          status: "active",
+        };
+        // Create project
+        const project: Project = {
+          id: projectId,
+          clientId,
+          client: client.business,
+          name: opts?.name || `${client.business} Website`,
+          status: "not-started",
+          tier: opts?.tier || "full",
+          value,
+          startDate: new Date().toISOString().split("T")[0],
+          dueDate: opts?.dueDate || "",
+          progress: 0,
+        };
+        return {
+          ...prev,
+          clients: [client, ...prev.clients],
+          projects: [project, ...prev.projects],
+          leads: prev.leads.map((l) =>
+            l.id === leadId ? { ...l, status: "converted", convertedClientId: clientId } : l
+          ),
+        };
+      });
       return { clientId, projectId };
     },
-    [convertLeadToClient, createProjectForClient]
+    []
   );
 
   const addRevenueForProject = useCallback(

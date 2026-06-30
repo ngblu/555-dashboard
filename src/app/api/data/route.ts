@@ -38,6 +38,6 @@ function getDefaultData() {
     tasks: [],
     audits: [],
     subscriptions: [],
-    payments: [],
+    revenue: [],
   };
 }

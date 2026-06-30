@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MapPin, Plus, X, Save, Building2, Wrench } from "lucide-react";
+import { MapPin, Plus, X, Save } from "lucide-react";
 
 type Target = { city: string; state: string; industry: string };
 

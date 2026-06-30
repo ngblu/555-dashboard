@@ -95,7 +95,7 @@ export interface Project {
   client: string; // denormalized business name for display
   name: string;
   status: ProjectStatus;
-  tier: "landing" | "full" | "custom" | string;
+  tier: string;
   value: number;
   startDate: string;
   dueDate: string;

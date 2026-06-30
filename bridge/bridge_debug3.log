@@ -1,0 +1,28 @@
+[Relay] Polling Vercel at https://555-dashboard.vercel.app/api/bridge
+🎤 555 Voice Bridge running on http://127.0.0.1:5555 (also http://localhost:5555)
+   Session: 20260626_135517_7f41c7
+   Auth Token: 555-remote-bridge
+   Endpoints:
+     POST /api/query             — send text, get Hermes response
+     GET  /api/tts               — get TTS audio for text
+     GET  /api/health            — health check
+     POST /api/control           — execute desktop action
+     GET  /api/control/screenshot — capture screen PNG
+[Relay] Registered with Vercel bridge relay
+[Relay] Registered with Vercel bridge relay
+[Relay] Registered with Vercel bridge relay
+[Relay] Registered with Vercel bridge relay
+[Relay] Registered with Vercel bridge relay
+[Relay] Registered with Vercel bridge relay
+[Relay] Registered with Vercel bridge relay
+[Voice] Calling Hermes API via curl...
+[Voice] Got first data from Hermes
+[Voice] RAW chunk: data: {"id": "chatcmpl-9df9dbdb186e4e2881e369ec08e4b", "object": "chat.completion.chunk", "created": 1782634813, "model": "hermes-agent", "choices": [
+[Relay] Registered with Vercel bridge relay
+[Relay] Registered with Vercel bridge relay
+[Relay] Registered with Vercel bridge relay
+[Relay] Registered with Vercel bridge relay
+[Relay] Registered with Vercel bridge relay
+[Relay] Registered with Vercel bridge relay
+[Relay] Registered with Vercel bridge relay
+[Voice] RAW chunk: data: {"id": "chatcmpl-9df9dbdb186e4e2881e369ec08e4b", "object": "chat.completion.chunk", "created": 1782634813, "model": "hermes-agent", "choices": [

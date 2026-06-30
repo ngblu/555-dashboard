@@ -28,12 +28,12 @@ Hi ${name},
 
 I ran a quick audit on ${domain || "your website"} and found a few things that might be costing you customers.
 
-${perf !== undefined ? `• Performance score: ${perf}/100 — ${perf < 50 ? "this is what makes people leave before your site even loads" : perf < 70 ? "room to improve here" : "looking solid"}
-• SEO score: ${seo}/100 — ${(seo ?? 0) < 50 ? "you're probably not showing up on Google for people searching your services" : (seo ?? 0) < 70 ? "decent, but we can push this higher" : "pretty good"}` : ""}
+${perf !== undefined ? `• Performance score: ${perf}/100, ${perf < 50 ? "this is what makes people leave before your site even loads" : perf < 70 ? "room to improve here" : "looking solid"}
+• SEO score: ${seo}/100, ${(seo ?? 0) < 50 ? "you're probably not showing up on Google for people searching your services" : (seo ?? 0) < 70 ? "decent, but we can push this higher" : "pretty good"}` : ""}
 
 ${issues?.slice(0, 3).map((i, idx) => `• ${i}`).join("\n") || ""}
 
-I'm Noah, I run 555 Digital — I find ${industryStr} businesses with outdated websites and rebuild them so they actually bring in calls and bookings. I'd love to do a free audit report for you, no strings attached, and walk you through what I'd fix.
+I'm Noah, I run 555 Digital, I find ${industryStr} businesses with outdated websites and rebuild them so they actually bring in calls and bookings. I'd love to do a free audit report for you, no strings attached, and walk you through what I'd fix.
 
 Want me to send the full report over?
 
@@ -46,9 +46,9 @@ Noah
 
 Hey ${name},
 
-Quick one — I looked at ${domain || "your site"} and ${perf && perf < 50 ? "it's loading pretty slow, which means people are leaving before they even see what you do" : "there are some things we could tighten up to get more calls from it"}.
+Quick one, I looked at ${domain || "your site"} and ${perf && perf < 50 ? "it's loading pretty slow, which means people are leaving before they even see what you do" : "there are some things we could tighten up to get more calls from it"}.
 
-I run a small web studio called 555 Digital. I work specifically with ${industryStr} businesses — I audit their sites, show them what's costing them customers, and rebuild everything so their phone actually rings.
+I run a small web studio called 555 Digital. I work specifically with ${industryStr} businesses, I audit their sites, show them what's costing them customers, and rebuild everything so their phone actually rings.
 
 Free audit, zero pressure. Takes 2 minutes. Want me to send it over?
 
@@ -62,9 +62,9 @@ Hi ${name},
 
 I run 555 Digital, a small web studio that helps ${industryStr} businesses turn their websites into actual customer pipelines.
 
-I took a look at ${domain || "your site"} — ${perf !== undefined ? `your performance score is ${perf}/100, which means ${perf < 50 ? "you're losing visitors before the page finishes loading" : "there's room to improve load times and conversions"}. ` : ""}${seo !== undefined ? `Your SEO is at ${seo}/100${seo < 60 ? ", which means people searching for your services in your area probably aren't finding you" : ""}.` : ""}
+I took a look at ${domain || "your site"}, ${perf !== undefined ? `your performance score is ${perf}/100, which means ${perf < 50 ? "you're losing visitors before the page finishes loading" : "there's room to improve load times and conversions"}. ` : ""}${seo !== undefined ? `Your SEO is at ${seo}/100${seo < 60 ? ", which means people searching for your services in your area probably aren't finding you" : ""}.` : ""}
 
-I'd love to send you a full audit report — it's free and takes me about 2 minutes. No pitch, no pressure. Just useful info about your site.
+I'd love to send you a full audit report, it's free and takes me about 2 minutes. No pitch, no pressure. Just useful info about your site.
 
 Interested?
 

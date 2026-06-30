@@ -70,7 +70,7 @@ export default function TasksPage() {
     } else if (task.taskType === "ai_audit") {
       aiResponse = `I'll run a full audit right now. Once done, I'll attach the report here with scores, issues, and recommendations. You'll be able to share it directly with the client.\n\nRunning audit now...`;
     } else if (task.taskType === "ai_email") {
-      aiResponse = `Here's a draft based on your context:\n\n---\n\nHi there,\n\nI ran a quick audit on your website and found some things that might be costing you customers.\n\nI'm Noah, I run 555 Digital — I help businesses like yours turn their websites into actual customer pipelines. I'd love to send you a free audit report, no strings attached.\n\nWant me to send it over?\n\nBest,\nNoah\n555 Digital`;
+      aiResponse = `Here's a draft based on your context:\n\n---\n\nHi there,\n\nI ran a quick audit on your website and found some things that might be costing you customers.\n\nI'm Noah, I run 555 Digital, I help businesses like yours turn their websites into actual customer pipelines. I'd love to send you a free audit report, no strings attached.\n\nWant me to send it over?\n\nBest,\nNoah\n555 Digital`;
     } else if (task.taskType === "ai_research") {
       aiResponse = `I'll research this and come back with findings. Here's what I'm looking into:\n\n• Competitor analysis in the area\n• Local SEO opportunities\n• Industry benchmarks for website performance\n• Common conversion patterns for this industry\n\nI'll post detailed findings here. Give me a few minutes.`;
     } else {

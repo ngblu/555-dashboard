@@ -184,11 +184,14 @@ export default function LeadsPage() {
     if (pollRef.current) clearInterval(pollRef.current);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       const res = await fetch("http://localhost:5555/api/lead-finder", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer 555-remote-bridge" },
-        signal: AbortSignal.timeout(10000),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await res.json();
 
       if (data.status === "started" || data.status === "already_running") {
@@ -198,7 +201,9 @@ export default function LeadsPage() {
         pollRef.current = setInterval(async () => {
           try {
             // Check if finder is still running
-            const sRes = await fetch("http://localhost:5555/api/lead-finder/status");
+            const sRes = await fetch("http://localhost:5555/api/lead-finder/status", {
+              headers: { "Authorization": "Bearer 555-remote-bridge" },
+            });
             const sData = await sRes.json();
             if (!sData.running) {
               setFinderStatus(sData.output.includes("LEAD:") ? "Complete! New leads found." : "Done. See results below.");
@@ -212,31 +217,7 @@ export default function LeadsPage() {
             const lRes = await fetch("/api/submit-lead");
             const lData = await lRes.json();
             if (lData.leads && lData.leads.length > 0) {
-              // Merge server leads into local store (dedupe by id)
-              const serverLeads = lData.leads.map((l: Record<string, unknown>) => ({
-                id: String(l.id || ""),
-                businessName: String(l.businessName || l.name || ""),
-                website: String(l.website || ""),
-                industry: String(l.industry || ""),
-                contactEmail: String(l.contactEmail || l.email || ""),
-                phone: String(l.phone || ""),
-                notes: String(l.notes || l.message || ""),
-                source: (["website","manual","page2_audit","automated"].includes(String(l.source||"")) ? String(l.source) : "page2_audit") as "website"|"manual"|"page2_audit"|"automated",
-                status: (l.status as LeadStatus) || "found",
-                audit: (l.audit as AuditMetrics | null) || null,
-                issues: [] as string[],
-                createdAt: String(l.createdAt || new Date().toISOString()),
-              }));
-              setLeads((prev) => {
-                const existingIds = new Set(prev.map((p) => p.id));
-                const newOnes = serverLeads.filter((sl: {id: string}) => !existingIds.has(sl.id));
-                if (newOnes.length > 0) {
-                  newOnes.forEach((nl: {businessName: string}) => 
-                    addNotification(`New lead found: ${nl.businessName}`, "success", "/leads")
-                  );
-                }
-                return [...newOnes, ...prev];
-              });
+              mergeServerLeads(lData.leads);
             }
           } catch {}
         }, 5000);
@@ -291,19 +272,23 @@ export default function LeadsPage() {
       const data = await res.json();
       if (data.status === "ok") {
         addNotification("Leads scored! Hot prospects at the top.", "success");
-        // Reload leads from server to get scores
-        setTimeout(() => window.location.reload(), 1000);
+        setTimeout(() => {
+          setScoring(false);
+          window.location.reload();
+        }, 1000);
       } else {
         addNotification("Scoring: " + (data.output || "completed"), "info");
+        setScoring(false);
       }
     } catch {
       addNotification("Cannot reach bridge for scoring.", "error");
+      setScoring(false);
     }
-    setScoring(false);
   };
 
   const advanceStatus = (leadId: string, currentStatus: LeadStatus) => {
     const idx = statusFlow.indexOf(currentStatus);
+    if (idx === -1) return; // dead or unknown status — don't advance
     if (idx < statusFlow.length - 1) {
       setLeads((prev) =>
         prev.map((l) =>

@@ -46,7 +46,7 @@ export default function MaintenancePage() {
       if (data.url) {
         setCheckoutUrl(data.url);
         window.open(data.url, "_blank");
-        flash("Subscription checkout opened — send this link to your client");
+        flash("Subscription checkout opened, send this link to your client");
       } else {
         flash(data.error || "Failed to create subscription link");
       }
@@ -73,7 +73,7 @@ export default function MaintenancePage() {
             <Wrench className="w-6 h-6 text-secondary" /> Maintenance
           </h1>
           <p className="text-text-muted text-sm mt-1">
-            Monthly maintenance subscriptions — $99/mo per client
+            Monthly maintenance subscriptions, $99/mo per client
           </p>
         </div>
         <Link href="/subscriptions" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg text-sm font-medium hover:bg-primary/20 transition-all">
@@ -88,7 +88,7 @@ export default function MaintenancePage() {
         </h2>
         <p className="text-text-muted text-xs">
           Creates a Stripe checkout page for $99/mo recurring. Share the link
-          with your client — they enter their card once and get billed monthly.
+          Share the link with your client, they enter their card once and get billed monthly.
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
           <input

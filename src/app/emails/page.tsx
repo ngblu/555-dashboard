@@ -138,7 +138,7 @@ export default function EmailsPage() {
           <div className="flex items-center gap-3">
             <select className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary flex-1" value={form.leadId} onChange={e => {
               const l = leads.find((l2: any) => l2.id === e.target.value);
-              setForm({ ...form, leadId: e.target.value, to: l?.contactEmail || form.to, subject: l ? `${l.businessName} — website audit` : form.subject });
+              setForm({ ...form, leadId: e.target.value, to: l?.contactEmail || form.to, subject: l ? `${l.businessName}, website audit` : form.subject });
             }}>
               <option value="">Link to lead (optional)</option>
               {leads.map((l: any) => <option key={l.id} value={l.id}>{l.businessName}</option>)}

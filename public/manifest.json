@@ -1,22 +1,45 @@
 {
   "name": "555 Command Center",
   "short_name": "555 CMD",
-  "description": "555 Digital Business Dashboard",
+  "description": "555 Digital Business Dashboard — AI-powered command center for managing leads, clients, projects, and revenue. Features seigaiha wave design, torii red accents, and real-time sync.",
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "theme_color": "#00D4FF",
   "background_color": "#06070B",
   "orientation": "any",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "/icon-192.svg",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
       "src": "/icon-512.svg",
       "sizes": "512x512",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "New Lead",
+      "short_name": "Lead",
+      "description": "Quick-add a new lead",
+      "url": "/leads?action=add",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Jarvis AI",
+      "short_name": "Jarvis",
+      "description": "Open Jarvis AI assistant",
+      "url": "/connect",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
     }
   ]
 }

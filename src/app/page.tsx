@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   DollarSign,
   Users,
@@ -8,8 +9,8 @@ import {
   TrendingUp,
   Clock,
   Mail,
-  AlertCircle,
   CheckSquare,
+  GripVertical,
 } from "lucide-react";
 import {
   AreaChart,
@@ -21,6 +22,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useData } from "@/lib/store";
+import TimeGreeting from "@/components/ui/TimeGreeting";
+import DailyTip from "@/components/ui/DailyTip";
+import SystemStatus from "@/components/ui/SystemStatus";
+import QuickActions from "@/components/ui/QuickActions";
+import ActivityFeed from "@/components/ui/ActivityFeed";
+import ThemeSwitcher from "@/components/ui/ThemeSwitcher";
 
 const priorityColors: Record<string, string> = {
   urgent: "bg-danger/20 text-danger border-danger/30",
@@ -31,6 +38,53 @@ const priorityColors: Record<string, string> = {
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+// ---- Widget types ----
+type WidgetId = "stats" | "today" | "revenue-chart" | "urgent-tasks" | "pipeline" | "system-status" | "quick-actions" | "activity-feed" | "theme";
+
+const DEFAULT_WIDGET_ORDER: WidgetId[] = [
+  "stats",
+  "today",
+  "revenue-chart",
+  "urgent-tasks",
+  "pipeline",
+  "system-status",
+  "quick-actions",
+  "activity-feed",
+  "theme",
+];
+
+function useWidgetOrder() {
+  const [order, setOrder] = useState<WidgetId[]>(DEFAULT_WIDGET_ORDER);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("555-widget-order");
+      if (saved) {
+        const parsed = JSON.parse(saved) as WidgetId[];
+        // Ensure all widgets are present
+        const all = [...new Set([...parsed, ...DEFAULT_WIDGET_ORDER])];
+        setOrder(all);
+      }
+    } catch {}
+  }, []);
+
+  const moveWidget = (id: WidgetId, direction: "up" | "down") => {
+    setOrder((prev) => {
+      const idx = prev.indexOf(id);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      const target = direction === "up" ? idx - 1 : idx + 1;
+      if (target < 0 || target >= next.length) return prev;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      try { localStorage.setItem("555-widget-order", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
+  return { order, moveWidget };
+}
+
+// ---- Custom Tooltip ----
 function CustomTooltip({
   active,
   payload,
@@ -49,8 +103,39 @@ function CustomTooltip({
   );
 }
 
+// ---- Widget Wrapper ----
+function WidgetWrapper({
+  children,
+  className,
+  widgetId,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  widgetId?: WidgetId;
+}) {
+  const { moveWidget } = useWidgetOrder();
+
+  return (
+    <div className={`glass rounded-xl p-4 md:p-6 border border-border hover-lift hover-glow ${className || ""}`}>
+      {widgetId && (
+        <div className="flex items-center justify-end -mt-1 -mr-1 mb-1 gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => moveWidget(widgetId, "up")}
+            className="p-1 text-text-muted hover:text-text-primary rounded"
+            title="Move up"
+          >
+            <GripVertical className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { leads, clients, projects, tasks, revenue, emailLogs } = useData();
+  const { order } = useWidgetOrder();
 
   const now = new Date();
   const thisMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
@@ -122,14 +207,279 @@ export default function DashboardPage() {
     .filter((t) => !t.completed && (t.priority === "urgent" || t.priority === "high"))
     .slice(0, 5);
 
+  const renderWidget = (id: WidgetId) => {
+    switch (id) {
+      case "stats":
+        return (
+          <WidgetWrapper key={id} widgetId={id}>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {stats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className="bg-surface-2 border border-border rounded-xl p-4 hover:border-border-bright transition-all duration-300"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`w-9 h-9 rounded-lg ${stat.bg} flex items-center justify-center`}>
+                      <stat.icon className={`w-4.5 h-4.5 ${stat.color}`} />
+                    </div>
+                    <span className="text-accent text-xs font-medium flex items-center gap-1">
+                      <TrendingUp className="w-3 h-3" />
+                      {stat.change}
+                    </span>
+                  </div>
+                  <p className="text-2xl font-bold text-text-primary">{stat.value}</p>
+                  <p className="text-text-muted text-xs mt-1">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          </WidgetWrapper>
+        );
+
+      case "today":
+        return (() => {
+          const todayStr = new Date().toISOString().split("T")[0];
+          const todayDate = new Date(todayStr);
+          const weekEnd = new Date(todayDate);
+          weekEnd.setDate(weekEnd.getDate() + 7);
+
+          const tasksDueToday = tasks.filter(
+            (t) => !t.completed && t.dueDate && t.dueDate.split("T")[0] === todayStr
+          );
+          const staleEmails = emailLogs.filter(
+            (e) =>
+              (e.status === "sent" || e.status === "opened") &&
+              e.leadId &&
+              Date.now() - new Date(e.sentAt).getTime() > 5 * 86400000
+          );
+          const projectsDueThisWeek = projects.filter((p) => {
+            if (!p.dueDate || p.status === "completed") return false;
+            const d = new Date(p.dueDate);
+            return d >= todayDate && d <= weekEnd;
+          });
+          const hasTodayItems =
+            tasksDueToday.length > 0 || staleEmails.length > 0 || projectsDueThisWeek.length > 0;
+
+          return (
+            <WidgetWrapper key={id} widgetId={id}>
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="w-5 h-5 text-primary" />
+                <h2 className="text-sm font-semibold text-text-primary">Today</h2>
+                <span className="text-text-muted text-xs">
+                  {new Date().toLocaleDateString("en-US", {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+              </div>
+              <DailyTip />
+              {!hasTodayItems && (
+                <p className="text-text-muted text-xs mt-3">All clear for today. 🎉</p>
+              )}
+              <div className="grid md:grid-cols-3 gap-4 mt-3">
+                {/* Tasks Due Today */}
+                <div className="bg-surface-2 rounded-lg p-3 border border-border">
+                  <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <CheckSquare className="w-3.5 h-3.5 text-primary" /> Tasks Due
+                  </h3>
+                  {tasksDueToday.length === 0 ? (
+                    <p className="text-text-muted text-xs">None</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {tasksDueToday.map((t) => (
+                        <div key={t.id} className="flex items-center gap-2 text-xs">
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              t.priority === "urgent"
+                                ? "bg-danger"
+                                : t.priority === "high"
+                                ? "bg-warning"
+                                : "bg-primary"
+                            }`}
+                          />
+                          <span className="text-text-primary">{t.title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Emails Needing Follow-up */}
+                <div className="bg-surface-2 rounded-lg p-3 border border-border">
+                  <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-warning" /> Follow-ups
+                  </h3>
+                  {staleEmails.length === 0 ? (
+                    <p className="text-text-muted text-xs">None</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {staleEmails.slice(0, 5).map((e) => {
+                        const linkedLead = leads.find((l) => l.id === e.leadId);
+                        const days = Math.floor(
+                          (Date.now() - new Date(e.sentAt).getTime()) / 86400000
+                        );
+                        return (
+                          <div key={e.id} className="flex items-center justify-between text-xs">
+                            <span className="text-text-primary truncate">
+                              {linkedLead?.businessName || e.to}
+                            </span>
+                            <span className="text-warning font-medium shrink-0 ml-2">{days}d</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Projects Due This Week */}
+                <div className="bg-surface-2 rounded-lg p-3 border border-border">
+                  <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <FolderKanban className="w-3.5 h-3.5 text-secondary" /> Due This Week
+                  </h3>
+                  {projectsDueThisWeek.length === 0 ? (
+                    <p className="text-text-muted text-xs">None</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {projectsDueThisWeek.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between text-xs">
+                          <span className="text-text-primary truncate">{p.name}</span>
+                          <span className="text-text-muted shrink-0 ml-2">{p.dueDate}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </WidgetWrapper>
+          );
+        })();
+
+      case "revenue-chart":
+        return (
+          <WidgetWrapper key={id} widgetId={id} className="lg:col-span-2">
+            <h2 className="text-sm font-semibold text-text-primary mb-4">Revenue Overview</h2>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={revenueData}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--pri)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="var(--pri)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--brd)" />
+                  <XAxis dataKey="month" stroke="var(--txt-3)" fontSize={12} />
+                  <YAxis
+                    stroke="var(--txt-3)"
+                    fontSize={12}
+                    tickFormatter={(v) => `$${v}`}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="amount"
+                    stroke="var(--pri)"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorRevenue)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </WidgetWrapper>
+        );
+
+      case "urgent-tasks":
+        return (
+          <WidgetWrapper key={id} widgetId={id}>
+            <h2 className="text-sm font-semibold text-text-primary mb-4">🔥 Urgent Tasks</h2>
+            <div className="space-y-3">
+              {urgentTasks.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-6 text-text-muted">
+                  <CheckSquare className="w-8 h-8 mb-2 opacity-20" />
+                  <p className="text-xs">No urgent tasks. Nice work!</p>
+                </div>
+              )}
+              {urgentTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="bg-surface-2 rounded-lg p-3 border border-border hover:border-border-bright transition-all"
+                >
+                  <p className="text-text-primary text-sm font-medium">{task.title}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${priorityColors[task.priority]}`}
+                    >
+                      {task.priority}
+                    </span>
+                    {task.dueDate && (
+                      <span className="text-text-muted text-[10px]">Due: {task.dueDate}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </WidgetWrapper>
+        );
+
+      case "pipeline":
+        return (
+          <WidgetWrapper key={id} widgetId={id}>
+            <h2 className="text-sm font-semibold text-text-primary mb-4">Pipeline Snapshot</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div>
+                <p className="text-2xl font-bold text-warning">{leads.length}</p>
+                <p className="text-text-muted text-xs mt-1">Total Leads</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-primary">{clients.length}</p>
+                <p className="text-text-muted text-xs mt-1">Clients</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-secondary">{projects.length}</p>
+                <p className="text-text-muted text-xs mt-1">Projects</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-accent">
+                  $
+                  {revenue
+                    .filter((r) => r.status === "pending")
+                    .reduce((s, r) => s + r.amount, 0)
+                    .toLocaleString()}
+                </p>
+                <p className="text-text-muted text-xs mt-1">Pending Revenue</p>
+              </div>
+            </div>
+          </WidgetWrapper>
+        );
+
+      case "system-status":
+        return <SystemStatus key={id} />;
+
+      case "quick-actions":
+        return <QuickActions key={id} />;
+
+      case "activity-feed":
+        return <ActivityFeed key={id} />;
+
+      case "theme":
+        return <ThemeSwitcher key={id} />;
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Command Center</h1>
+          <h1 className="text-2xl font-bold text-text-primary">
+            <TimeGreeting />
+          </h1>
           <p className="text-text-muted text-sm mt-1">
-            Welcome back, Noah. Here&apos;s your business at a glance.
+            Your business command center, everything at a glance.
           </p>
         </div>
         <div className="flex items-center gap-2 text-text-muted text-xs font-mono">
@@ -142,202 +492,22 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-surface border border-border rounded-xl p-5 hover:border-border-bright transition-all duration-300"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className={`w-9 h-9 rounded-lg ${stat.bg} flex items-center justify-center`}>
-                <stat.icon className={`w-4.5 h-4.5 ${stat.color}`} />
+      {/* Widget Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {order.map((id) => {
+          // Special case: revenue-chart spans 2 cols
+          if (id === "revenue-chart") {
+            return (
+              <div key={id} className="lg:col-span-2">
+                {renderWidget(id)}
               </div>
-              <span className="text-accent text-xs font-medium flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" />
-                {stat.change}
-              </span>
-            </div>
-            <p className="text-2xl font-bold text-text-primary">{stat.value}</p>
-            <p className="text-text-muted text-xs mt-1">{stat.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Today Section */}
-      {(() => {
-        const todayStr = new Date().toISOString().split("T")[0];
-        const todayDate = new Date(todayStr);
-        const weekEnd = new Date(todayDate);
-        weekEnd.setDate(weekEnd.getDate() + 7);
-
-        const tasksDueToday = tasks.filter(t => !t.completed && t.dueDate && t.dueDate.split("T")[0] === todayStr);
-        const staleEmails = emailLogs.filter(e =>
-          (e.status === "sent" || e.status === "opened") &&
-          e.leadId &&
-          (Date.now() - new Date(e.sentAt).getTime()) > 5 * 86400000
-        );
-        const projectsDueThisWeek = projects.filter(p => {
-          if (!p.dueDate || p.status === "completed") return false;
-          const d = new Date(p.dueDate);
-          return d >= todayDate && d <= weekEnd;
-        });
-        const hasTodayItems = tasksDueToday.length > 0 || staleEmails.length > 0 || projectsDueThisWeek.length > 0;
-
-        return (
-          <div className="bg-surface border border-border rounded-xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-5 h-5 text-primary" />
-              <h2 className="text-sm font-semibold text-text-primary">Today</h2>
-              <span className="text-text-muted text-xs">{new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</span>
-            </div>
-            {!hasTodayItems && (
-              <p className="text-text-muted text-xs">All clear for today. 🎉</p>
-            )}
-            <div className="grid md:grid-cols-3 gap-4">
-              {/* Tasks Due Today */}
-              <div className="bg-surface-2 rounded-lg p-3 border border-border">
-                <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <CheckSquare className="w-3.5 h-3.5 text-primary" /> Tasks Due
-                </h3>
-                {tasksDueToday.length === 0 ? (
-                  <p className="text-text-muted text-xs">None</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {tasksDueToday.map(t => (
-                      <div key={t.id} className="flex items-center gap-2 text-xs">
-                        <span className={`w-1.5 h-1.5 rounded-full ${t.priority === "urgent" ? "bg-danger" : t.priority === "high" ? "bg-warning" : "bg-primary"}`} />
-                        <span className="text-text-primary">{t.title}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Emails Needing Follow-up */}
-              <div className="bg-surface-2 rounded-lg p-3 border border-border">
-                <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-warning" /> Follow-ups
-                </h3>
-                {staleEmails.length === 0 ? (
-                  <p className="text-text-muted text-xs">None</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {staleEmails.slice(0, 5).map(e => {
-                      const linkedLead = leads.find(l => l.id === e.leadId);
-                      const days = Math.floor((Date.now() - new Date(e.sentAt).getTime()) / 86400000);
-                      return (
-                        <div key={e.id} className="flex items-center justify-between text-xs">
-                          <span className="text-text-primary truncate">{linkedLead?.businessName || e.to}</span>
-                          <span className="text-warning font-medium shrink-0 ml-2">{days}d</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Projects Due This Week */}
-              <div className="bg-surface-2 rounded-lg p-3 border border-border">
-                <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <FolderKanban className="w-3.5 h-3.5 text-secondary" /> Due This Week
-                </h3>
-                {projectsDueThisWeek.length === 0 ? (
-                  <p className="text-text-muted text-xs">None</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {projectsDueThisWeek.map(p => (
-                      <div key={p.id} className="flex items-center justify-between text-xs">
-                        <span className="text-text-primary truncate">{p.name}</span>
-                        <span className="text-text-muted shrink-0 ml-2">{p.dueDate}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Charts + Activity Row */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Revenue Chart */}
-        <div className="lg:col-span-2 bg-surface border border-border rounded-xl p-6">
-          <h2 className="text-sm font-semibold text-text-primary mb-4">Revenue Overview</h2>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueData}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00D4FF" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#00D4FF" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1A1B2E" />
-                <XAxis dataKey="month" stroke="#5C5C78" fontSize={12} />
-                <YAxis stroke="#5C5C78" fontSize={12} tickFormatter={(v) => `$${v}`} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="amount"
-                  stroke="#00D4FF"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorRevenue)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Urgent Tasks */}
-        <div className="bg-surface border border-border rounded-xl p-6">
-          <h2 className="text-sm font-semibold text-text-primary mb-4">🔥 Urgent Tasks</h2>
-          <div className="space-y-3">
-            {urgentTasks.length === 0 && (
-              <p className="text-text-muted text-xs">No urgent tasks. Nice.</p>
-            )}
-            {urgentTasks.map((task) => (
-              <div key={task.id} className="bg-surface-2 rounded-lg p-3 border border-border">
-                <p className="text-text-primary text-sm font-medium">{task.title}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${priorityColors[task.priority]}`}>
-                    {task.priority}
-                  </span>
-                  {task.dueDate && (
-                    <span className="text-text-muted text-[10px]">Due: {task.dueDate}</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Pipeline snapshot */}
-      <div className="bg-surface border border-border rounded-xl p-6">
-        <h2 className="text-sm font-semibold text-text-primary mb-4">Pipeline Snapshot</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          <div>
-            <p className="text-2xl font-bold text-warning">{leads.length}</p>
-            <p className="text-text-muted text-xs mt-1">Total Leads</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-primary">{clients.length}</p>
-            <p className="text-text-muted text-xs mt-1">Clients</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-secondary">{projects.length}</p>
-            <p className="text-text-muted text-xs mt-1">Projects</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-accent">
-              ${revenue.filter((r) => r.status === "pending").reduce((s, r) => s + r.amount, 0).toLocaleString()}
-            </p>
-            <p className="text-text-muted text-xs mt-1">Pending Revenue</p>
-          </div>
-        </div>
+            );
+          }
+          if (id === "urgent-tasks") {
+            return <div key={id}>{renderWidget(id)}</div>;
+          }
+          return <div key={id}>{renderWidget(id)}</div>;
+        })}
       </div>
     </div>
   );
