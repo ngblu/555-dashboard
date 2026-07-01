@@ -1,15 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/layout/Sidebar";
-import MobileTabBar from "@/components/layout/MobileTabBar";
 import PWARegister from "@/components/layout/PWARegister";
-import Particles from "@/components/ui/Particles";
-import { DataProvider } from "@/lib/store";
-import { ThemeProvider } from "@/lib/theme";
-import QuickAdd from "@/components/ui/QuickAdd";
-import CommandPalette from "@/components/ui/CommandPalette";
-import JarvisAssistant from "@/components/ui/JarvisAssistant";
+import DashboardShell from "@/components/layout/DashboardShell";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -50,22 +43,8 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.svg" />
       </head>
       <body className="min-h-full bg-background text-text-primary">
-        <Particles />
-        <ThemeProvider>
-          <DataProvider>
-            <div className="relative z-10">
-              <Sidebar />
-              <main className="main-content min-h-screen p-3 md:p-6 pb-20 lg:pb-6 transition-all page-enter">
-                {children}
-              </main>
-            </div>
-            <MobileTabBar />
-            <QuickAdd />
-            <CommandPalette />
-            <JarvisAssistant />
-            <PWARegister />
-          </DataProvider>
-        </ThemeProvider>
+        <DashboardShell>{children}</DashboardShell>
+        <PWARegister />
       </body>
     </html>
   );

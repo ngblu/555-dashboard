@@ -1,1 +1,6 @@
-[]
+[
+  {"city": "Wichita", "state": "KS", "industry": "Plumbing"},
+  {"city": "Wichita", "state": "KS", "industry": "HVAC"},
+  {"city": "Wichita", "state": "KS", "industry": "Roofing"},
+  {"city": "Wichita", "state": "KS", "industry": "Landscaping"}
+]

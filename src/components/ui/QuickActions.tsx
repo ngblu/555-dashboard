@@ -8,7 +8,6 @@ const actions = [
   { icon: Search, label: "Site Audit", href: "/audit" },
   { icon: FileText, label: "New Lead", href: "/leads" },
   { icon: Send, label: "Send Email", href: "/emails" },
-  { icon: Sparkles, label: "Jarvis", href: "#", action: "jarvis" },
 ];
 
 export default function QuickActions() {
@@ -18,9 +17,6 @@ export default function QuickActions() {
     if (action === "quick-add") {
       // Dispatch Ctrl+N to open QuickAdd
       window.dispatchEvent(new KeyboardEvent("keydown", { ctrlKey: true, key: "n" }));
-    } else if (action === "jarvis") {
-      // Open Jarvis via custom event
-      window.dispatchEvent(new CustomEvent("toggle-jarvis"));
     }
   };
 

@@ -27,6 +27,9 @@ import type {
   Subscription,
   Notification,
   AuditMetrics,
+  UserSession,
+  SalesStage,
+  Meeting,
 } from "./types";
 
 const KEY = "555-cmd-store-v1";
@@ -41,6 +44,7 @@ interface StoreShape {
   subscriptions: Subscription[];
   emailLogs: EmailLog[];
   notifications: Notification[];
+  meetings: Meeting[];
 }
 
 const EMPTY: StoreShape = {
@@ -53,6 +57,7 @@ const EMPTY: StoreShape = {
   subscriptions: [],
   emailLogs: [],
   notifications: [],
+  meetings: [],
 };
 
 const uid = (p: string) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -61,6 +66,11 @@ interface DataContextValue extends StoreShape {
   hydrated: boolean;
   /** "local" = KV not configured (browser-only); "synced" = saved to cloud; "saving"; "offline" = save failed. */
   syncStatus: "loading" | "local" | "synced" | "saving" | "offline";
+
+  // ---- auth ----
+  user: UserSession | null;
+  setUser: (u: UserSession | null) => void;
+  loadingUser: boolean;
 
   // setters (functional updates supported)
   setLeads: (v: Lead[] | ((p: Lead[]) => Lead[])) => void;
@@ -72,6 +82,7 @@ interface DataContextValue extends StoreShape {
   setNotifications: (v: Notification[] | ((p: Notification[]) => Notification[])) => void;
   setSubscriptions: (v: Subscription[] | ((p: Subscription[]) => Subscription[])) => void;
   setEmailLogs: (v: EmailLog[] | ((p: EmailLog[]) => EmailLog[])) => void;
+  setMeetings: (v: Meeting[] | ((p: Meeting[]) => Meeting[])) => void;
   /** Log an email and auto-update the linked lead/client. */
   logEmail: (entry: Omit<EmailLog, "id" | "sentAt">) => void;
 
@@ -104,6 +115,17 @@ interface DataContextValue extends StoreShape {
     type: Revenue["type"],
     status?: Revenue["status"]
   ) => void;
+
+  toggleFavorite: (leadId: string) => void;
+  // ---- sales pipeline (for salesman role) ----
+  /** Move a lead to a new sales stage. */
+  updateLeadStage: (leadId: string, stage: SalesStage) => void;
+  /** Assign a lead to a salesman. */
+  assignLead: (leadId: string, userId: string, area?: string) => void;
+  /** Schedule a meeting for a lead. */
+  addMeeting: (meeting: Omit<Meeting, "id" | "createdAt">) => Meeting;
+  /** Update a meeting. */
+  updateMeeting: (id: string, updates: Partial<Meeting>) => void;
 }
 
 const DataContext = createContext<DataContextValue | null>(null);
@@ -114,14 +136,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [syncStatus, setSyncStatus] =
     useState<DataContextValue["syncStatus"]>("loading");
 
+  // ---- auth state ----
+  const [user, setUserState] = useState<UserSession | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
   // tracks whether the cloud (Blob) is the source of truth
   const cloudEnabledRef = useRef(false);
   // debounce timer for cloud saves
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ---- fetch current user on mount ----
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) setUserState(data.user);
+        }
+      } catch {
+        // not logged in — that's fine
+      } finally {
+        setLoadingUser(false);
+      }
+    })();
+  }, []);
+
+  const setUser = useCallback((u: UserSession | null) => {
+    setUserState(u);
+  }, []);
   // skip the very first persist (right after we load) so we don't echo back
   const skipNextSaveRef = useRef(true);
 
-  // ---- initial load: localStorage first (instant), then KV (authoritative) ----
+  // ---- initial load: localStorage first (instant), then server (authoritative) ----
   useEffect(() => {
     let cancelled = false;
 
@@ -133,25 +180,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
       console.error("local cache read failed", e);
     }
 
-    // 2. then reconcile with the cloud
+    // 2. then reconcile with the server (KV or /tmp or Blob)
     (async () => {
       try {
         const res = await fetch("/api/data", { cache: "no-store" });
         const json = await res.json();
         if (cancelled) return;
 
-        if (json.configured && json.data) {
-          // cloud wins — it's shared across devices
+        if (json.data && (json.configured || json.source === "kv" || json.source === "tmp" || json.source === "blob")) {
+          // server has authoritative data
           cloudEnabledRef.current = true;
           skipNextSaveRef.current = true;
-          setStore({ ...EMPTY, ...json.data });
-          setSyncStatus("synced");
-        } else if (json.configured) {
-          // KV is on but empty — we'll seed it on first save
-          cloudEnabledRef.current = true;
+
+          // If server data exists and is non-empty, use it
+          const serverData = json.data as Record<string, unknown>;
+          const hasData = Object.values(serverData).some(
+            (v) => Array.isArray(v) && v.length > 0
+          );
+
+          if (hasData) {
+            setStore({ ...EMPTY, ...serverData });
+          } else {
+            // Server is empty — seed it with our local data on next save
+            // (the persist effect below will push local data up)
+          }
           setSyncStatus("synced");
         } else {
-          // KV not provisioned yet — stay browser-only
+          // No server backend available — stay browser-only
           cloudEnabledRef.current = false;
           setSyncStatus("local");
         }
@@ -192,16 +247,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setSyncStatus("saving");
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch("/api/data", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(store),
-        });
-        const json = await res.json().catch(() => ({}));
-        setSyncStatus(res.ok && json.saved ? "synced" : "offline");
-      } catch {
-        setSyncStatus("offline");
+      let succeeded = false;
+      let retries = 0;
+      const maxRetries = 2;
+
+      while (retries <= maxRetries && !succeeded) {
+        try {
+          const res = await fetch("/api/data", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(store),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (res.ok && json.saved) {
+            setSyncStatus("synced");
+            succeeded = true;
+          } else if (retries < maxRetries) {
+            // Wait before retry (exponential backoff: 1s, 2s)
+            await new Promise((r) => setTimeout(r, (retries + 1) * 1000));
+          } else {
+            setSyncStatus("offline");
+          }
+        } catch {
+          if (retries < maxRetries) {
+            await new Promise((r) => setTimeout(r, (retries + 1) * 1000));
+          } else {
+            setSyncStatus("offline");
+          }
+        }
+        retries++;
       }
     }, 700);
   }, [store, hydrated]);
@@ -238,6 +312,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const setNotifications = useCallback(sliceSetter("notifications"), []);
   const setSubscriptions = useCallback(sliceSetter("subscriptions"), []);
   const setEmailLogs = useCallback(sliceSetter("emailLogs"), []);
+  const setMeetings = useCallback(sliceSetter("meetings"), []);
 
   const logEmail = useCallback((entry: Omit<EmailLog, "id" | "sentAt">) => {
     const log: EmailLog = {
@@ -480,10 +555,123 @@ export function DataProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  // ---- leads favorites ----
+
+  const toggleFavorite = useCallback((leadId: string) => {
+    setStore((prev) => ({
+      ...prev,
+      leads: prev.leads.map((l) =>
+        l.id === leadId ? { ...l, favorited: !l.favorited } : l
+      ),
+    }));
+  }, []);
+
+  // ---- sales pipeline ----
+
+  const updateLeadStage = useCallback((leadId: string, stage: SalesStage) => {
+    setStore((prev) => {
+      const notifType: Notification["type"] =
+        stage === "closed_won" ? "success" : stage === "closed_lost" ? "warning" : "info";
+      return {
+        ...prev,
+        leads: prev.leads.map((l) =>
+          l.id === leadId
+            ? {
+                ...l,
+                salesStage: stage,
+                stageUpdatedAt: new Date().toISOString(),
+                ...(stage === "closed_won"
+                  ? { status: "converted" as const }
+                  : {}),
+              }
+            : l
+        ),
+        notifications: [
+          {
+            id: uid("n_"),
+            message: `Lead "${prev.leads.find((l) => l.id === leadId)?.businessName || leadId}" moved to ${stage.replace(/_/g, " ")}`,
+            type: notifType,
+            read: false,
+            createdAt: new Date().toISOString(),
+            link: "/leads",
+          },
+          ...prev.notifications,
+        ].slice(0, 100),
+      };
+    });
+  }, []);
+
+  const assignLead = useCallback(
+    (leadId: string, userId: string, area?: string) => {
+      setStore((prev) => ({
+        ...prev,
+        leads: prev.leads.map((l) =>
+          l.id === leadId
+            ? {
+                ...l,
+                assignedTo: userId,
+                area: area || l.area,
+                salesStage: (l.salesStage || "new") as SalesStage,
+                stageUpdatedAt: new Date().toISOString(),
+              }
+            : l
+        ),
+      }));
+    },
+    []
+  );
+
+  // ---- meetings / calendar ----
+
+  const addMeeting = useCallback(
+    (meeting: Omit<Meeting, "id" | "createdAt">) => {
+      const newMeeting: Meeting = {
+        ...meeting,
+        id: uid("m_"),
+        createdAt: new Date().toISOString(),
+      };
+      setStore((prev) => {
+        const notifType: Notification["type"] = "info";
+        return {
+          ...prev,
+          meetings: [newMeeting, ...prev.meetings],
+          notifications: [
+            {
+              id: uid("n_"),
+              message: `Meeting scheduled: ${meeting.title} with ${meeting.leadName} on ${meeting.date}`,
+              type: notifType,
+              read: false,
+              createdAt: new Date().toISOString(),
+              link: "/calendar",
+            },
+            ...prev.notifications,
+          ].slice(0, 100),
+        };
+      });
+      return newMeeting;
+    },
+    []
+  );
+
+  const updateMeeting = useCallback(
+    (id: string, updates: Partial<Meeting>) => {
+      setStore((prev) => ({
+        ...prev,
+        meetings: prev.meetings.map((m) =>
+          m.id === id ? { ...m, ...updates } : m
+        ),
+      }));
+    },
+    []
+  );
+
   const value: DataContextValue = {
     ...store,
     hydrated,
     syncStatus,
+    user,
+    setUser,
+    loadingUser,
     setLeads,
     setAudits,
     setClients,
@@ -492,6 +680,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setRevenue,
     setSubscriptions,
     setEmailLogs,
+    setMeetings,
     logEmail,
     setNotifications,
     addNotification,
@@ -503,6 +692,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     createProjectForClient,
     convertLeadToProject,
     addRevenueForProject,
+    updateLeadStage,
+    assignLead,
+    toggleFavorite,
+    addMeeting,
+    updateMeeting,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

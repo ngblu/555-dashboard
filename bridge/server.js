@@ -663,6 +663,61 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── Search: DDG search relay for Vercel (bypasses Vercel IP CAPTCHA) ──
+  if (url.pathname === "/api/search" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => { body += chunk; });
+    req.on("end", async () => {
+      try {
+        const { query } = JSON.parse(body || "{}");
+        if (!query) return jsonReply(req, res, 400, { error: "Missing query" });
+
+        // Use Python ddgs library — same as lead_finder.py (bypasses CAPTCHA)
+        const result = await new Promise((resolve, reject) => {
+          const child = execFile("python3", ["-c", `
+import json, sys
+from ddgs import DDGS
+
+query = ${JSON.stringify(query)}
+businesses = []
+
+try:
+    with DDGS() as ddgs:
+        raw = list(ddgs.text(query, max_results=15))
+        for r in raw[5:]:  # skip page 1 results
+            url = r.get("href", "")
+            title = r.get("title", "")
+            if not url or not title:
+                continue
+            # Basic filtering: skip non-business URLs
+            domain = url.split("/")[2] if "//" in url else url
+            if any(s in url.lower() for s in ["facebook.com", "youtube.com", "yelp.com", "angi.com", "reddit.com"]):
+                continue
+            businesses.append({
+                "name": title[:80].strip(),
+                "website": url,
+                "snippet": r.get("body", ""),
+            })
+            if len(businesses) >= 10:
+                break
+except Exception as e:
+    print(json.dumps({"error": str(e)}))
+    sys.exit(0)
+
+print(json.dumps({"results": businesses}))
+          `], { timeout: 30000, maxBuffer: 1024 * 1024 }, (err, stdout, stderr) => {
+            if (err) return reject(err);
+            try { resolve(JSON.parse(stdout)); } catch(e) { reject(new Error("parse: " + stdout.slice(0, 200))); }
+          });
+        });
+        jsonReply(req, res, 200, result);
+      } catch (e) {
+        jsonReply(req, res, 500, { error: "Search failed: " + e.message });
+      }
+    });
+    return;
+  }
+
   // ── Lead Finder: run automated lead discovery (async, responds immediately) ──
   if (url.pathname === "/api/lead-finder" && req.method === "POST") {
     if (!checkAuth(req, res)) return;

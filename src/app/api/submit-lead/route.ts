@@ -41,7 +41,48 @@ export async function POST(req: NextRequest) {
       source,
       notes,
       audit,
+      area,
+      assignedTo,
+      salesStage,
+      score,
+      classification,
+      // Support batch upload: { batch: [...] }
+      batch,
     } = body;
+
+    // Batch mode: process array of leads
+    if (Array.isArray(batch) && batch.length > 0) {
+      const leads = readLeads();
+      const newLeads: Record<string, unknown>[] = [];
+      for (const item of batch) {
+        const bizName = (item.businessName || item.name || "Unknown").trim();
+        const contact = (item.contactEmail || item.email || "").trim();
+        newLeads.push({
+          id: item.id || ("lead_" + Date.now() + Math.random().toString(36).slice(2,6)),
+          businessName: bizName,
+          name: bizName,
+          email: contact,
+          contactEmail: contact,
+          website: item.website || "",
+          phone: item.phone || "",
+          industry: item.industry || "",
+          area: item.area || "",
+          source: item.source || "page2_audit",
+          notes: item.notes || "",
+          assignedTo: item.assignedTo || "",
+          salesStage: item.salesStage || "new",
+          score: item.score || 0,
+          classification: item.classification || "cold",
+          audit: item.audit || null,
+          status: item.status || "found",
+          createdAt: item.createdAt || new Date().toISOString(),
+        });
+      }
+      // Prepend new leads, keep max 500
+      const merged = [...newLeads, ...leads];
+      writeLeads(merged.slice(0, 500));
+      return NextResponse.json({ success: true, count: newLeads.length }, { headers: corsHeaders });
+    }
 
     // Normalize: support both name/businessName and email/contactEmail
     const bizName = (businessName || name || "Unknown").trim();
@@ -101,6 +142,7 @@ export async function POST(req: NextRequest) {
       website: website || "",
       phone: phone || "",
       industry: industry || "",
+      area: area || "",
       source: source || "website",
       notes: notes || message || "",
       budget: budget || "",
@@ -108,6 +150,10 @@ export async function POST(req: NextRequest) {
       audit: auditData,
       status: "found",
       createdAt: new Date().toISOString(),
+      assignedTo: assignedTo || "",
+      salesStage: salesStage || "new",
+      score: score || 0,
+      classification: classification || "cold",
     };
 
     // Persist to /tmp file
@@ -150,8 +196,9 @@ ${
 
     return NextResponse.json({ success: true, lead }, { headers: corsHeaders });
   } catch (e) {
+    console.error("submit-lead error:", e);
     return NextResponse.json(
-      { success: false, error: String(e) },
+      { success: false, error: "Server error" },
       { status: 500, headers: corsHeaders }
     );
   }

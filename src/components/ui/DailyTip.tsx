@@ -4,7 +4,7 @@ import { Lightbulb } from "lucide-react";
 
 const tips = [
   "Use Ctrl+N to quickly add leads, tasks, or projects.",
-  "The Jarvis AI can help you analyze leads and draft emails.",
+  "Use the pipeline view to drag leads between stages.",
   "Track your pipeline health in the Pipeline Snapshot section.",
   "Sync works across devices when you configure Vercel KV.",
   "You can convert a lead to a client and project in one click.",

@@ -22,6 +22,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useData } from "@/lib/store";
+import type { SalesStage, Lead } from "@/lib/types";
 import TimeGreeting from "@/components/ui/TimeGreeting";
 import DailyTip from "@/components/ui/DailyTip";
 import SystemStatus from "@/components/ui/SystemStatus";
@@ -422,36 +423,83 @@ export default function DashboardPage() {
           </WidgetWrapper>
         );
 
-      case "pipeline":
+      case "pipeline": {
+        // ---- Sales Statistics ----
+        const stageLabels: Record<SalesStage, string> = {
+          new: "New", contacted: "Contacted", qualified: "Qualified",
+          proposal: "Proposal", negotiation: "Negotiation",
+          closed_won: "Closed Won", closed_lost: "Closed Lost",
+        };
+        const STAGE_ORDER: SalesStage[] = ["new", "contacted", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"];
+        const byStage = new Map<SalesStage, Lead[]>();
+        STAGE_ORDER.forEach(s => byStage.set(s, []));
+        leads.forEach(l => {
+          const s = (l.salesStage || "new") as SalesStage;
+          byStage.get(s)?.push(l);
+        });
+
+        const activeDeals = (byStage.get("new")?.length || 0) +
+          (byStage.get("contacted")?.length || 0) +
+          (byStage.get("qualified")?.length || 0) +
+          (byStage.get("proposal")?.length || 0) +
+          (byStage.get("negotiation")?.length || 0);
+        const wonCount = byStage.get("closed_won")?.length || 0;
+        const lostCount = byStage.get("closed_lost")?.length || 0;
+        const totalClosed = wonCount + lostCount;
+        const conversionRate = totalClosed > 0 ? Math.round((wonCount / totalClosed) * 100) : 0;
+        const maxStage = Math.max(...STAGE_ORDER.map(s => byStage.get(s)?.length || 0), 1);
+
         return (
           <WidgetWrapper key={id} widgetId={id}>
-            <h2 className="text-sm font-semibold text-text-primary mb-4">Pipeline Snapshot</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
-                <p className="text-2xl font-bold text-warning">{leads.length}</p>
-                <p className="text-text-muted text-xs mt-1">Total Leads</p>
+            <h2 className="text-sm font-semibold text-text-primary mb-4">Sales Statistics</h2>
+
+            {/* Top metrics */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="bg-surface-2 rounded-lg p-3 border border-border text-center">
+                <p className="text-xl font-bold text-warning">{activeDeals}</p>
+                <p className="text-text-muted text-[10px] mt-0.5">Active Pipeline</p>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-primary">{clients.length}</p>
-                <p className="text-text-muted text-xs mt-1">Clients</p>
+              <div className="bg-surface-2 rounded-lg p-3 border border-border text-center">
+                <p className="text-xl font-bold text-accent">{wonCount}</p>
+                <p className="text-text-muted text-[10px] mt-0.5">Deals Won</p>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-secondary">{projects.length}</p>
-                <p className="text-text-muted text-xs mt-1">Projects</p>
+              <div className="bg-surface-2 rounded-lg p-3 border border-border text-center">
+                <p className="text-xl font-bold text-danger">{lostCount}</p>
+                <p className="text-text-muted text-[10px] mt-0.5">Deals Lost</p>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-accent">
-                  $
-                  {revenue
-                    .filter((r) => r.status === "pending")
-                    .reduce((s, r) => s + r.amount, 0)
-                    .toLocaleString()}
-                </p>
-                <p className="text-text-muted text-xs mt-1">Pending Revenue</p>
+              <div className="bg-surface-2 rounded-lg p-3 border border-border text-center">
+                <p className="text-xl font-bold text-primary">{conversionRate}%</p>
+                <p className="text-text-muted text-[10px] mt-0.5">Conversion Rate</p>
               </div>
+            </div>
+
+            {/* Stage breakdown bars */}
+            <div className="space-y-1.5">
+              {STAGE_ORDER.map(s => {
+                const count = byStage.get(s)?.length || 0;
+                const pct = Math.round((count / maxStage) * 100);
+                const barColor = s === "closed_won" ? "bg-accent" :
+                  s === "closed_lost" ? "bg-danger" :
+                  s === "new" ? "bg-text-muted" :
+                  s === "contacted" ? "bg-primary" :
+                  s === "qualified" ? "bg-secondary" : "bg-warning";
+                return (
+                  <div key={s} className="flex items-center gap-2">
+                    <span className="text-text-muted text-[10px] w-16 shrink-0 text-right">{stageLabels[s]}</span>
+                    <div className="flex-1 h-4 bg-surface-2 rounded-full overflow-hidden border border-border">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                        style={{ width: `${pct}%`, minWidth: count > 0 ? "8px" : "0" }}
+                      />
+                    </div>
+                    <span className="text-text-primary text-[10px] w-5 font-medium">{count}</span>
+                  </div>
+                );
+              })}
             </div>
           </WidgetWrapper>
         );
+      }
 
       case "system-status":
         return <SystemStatus key={id} />;

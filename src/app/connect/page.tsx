@@ -65,9 +65,9 @@ export default function ConnectPage() {
         </div>
 
         <div>
-          <h1 className="text-xl font-bold text-text-primary">Connect to Jarvis</h1>
+          <h1 className="text-xl font-bold text-text-primary">Mobile Connect</h1>
           <p className="text-text-secondary text-sm mt-1">
-            Scan the QR code or enter the URL on your mobile device to connect to the Jarvis AI assistant.
+            Scan the QR code or enter the URL on your mobile device to connect to the 555 AI assistant.
           </p>
         </div>
 
@@ -154,7 +154,7 @@ export default function ConnectPage() {
             <li>Make sure your mobile device is on the same WiFi network.</li>
             <li>Open your phone&apos;s camera and scan the QR code above.</li>
             <li>Or, manually enter the URL in your mobile browser.</li>
-            <li>The Jarvis assistant will be available on your phone!</li>
+            <li>The 555 AI assistant will be available on your phone!</li>
           </ol>
         </div>
 

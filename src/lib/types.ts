@@ -29,6 +29,40 @@ export type LeadStatus =
   | "converted"
   | "dead";
 
+// ---- auth types ----
+
+export type UserRole = "admin" | "salesman" | "manager";
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  passwordHash: string;
+  area?: string; // region / territory for salesmen
+  active: boolean;
+  createdAt: string;
+}
+
+export interface UserSession {
+  sub: string; // user id
+  email: string;
+  name: string;
+  role: UserRole;
+  area?: string;
+}
+
+// ---- sales pipeline ----
+
+export type SalesStage =
+  | "new"
+  | "contacted"
+  | "qualified"
+  | "proposal"
+  | "negotiation"
+  | "closed_won"
+  | "closed_lost";
+
 export interface Lead {
   id: string;
   businessName: string;
@@ -47,6 +81,13 @@ export interface Lead {
   // lead scoring
   score?: number;
   classification?: "hot" | "warm" | "cold";
+  // ---- sales pipeline (for salesman role) ----
+  salesStage?: SalesStage;
+  assignedTo?: string; // user id of assigned salesman
+  area?: string; // region/city the lead belongs to
+  zip?: string; // postal code
+  stageUpdatedAt?: string;
+  favorited?: boolean;
 }
 
 export interface SavedAudit {
@@ -169,4 +210,19 @@ export interface Notification {
   read: boolean;
   createdAt: string;
   link?: string;
+}
+
+// ---- meetings / calendar ----
+
+export interface Meeting {
+  id: string;
+  leadId?: string;
+  leadName: string; // denormalized for display
+  title: string;
+  date: string; // ISO date YYYY-MM-DD
+  time: string; // HH:MM
+  duration: number; // minutes
+  notes: string;
+  status: "scheduled" | "completed" | "cancelled";
+  createdAt: string;
 }

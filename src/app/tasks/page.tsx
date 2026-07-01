@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckSquare, Plus, X, Send, Loader2, Sparkles, MessageSquare, Globe, Search, Mail, FileText, ExternalLink } from "lucide-react";
+import { CheckSquare, Plus, X, Send, Loader2, Sparkles, MessageSquare, Globe, Search, Mail, FileText, ExternalLink, Shield } from "lucide-react";
 import { useData } from "@/lib/store";
 
 const taskTypes = [
@@ -13,12 +13,33 @@ const taskTypes = [
 ];
 
 export default function TasksPage() {
-  const { tasks, setTasks, projects, addNotification } = useData();
+  const { tasks, setTasks, projects, addNotification, user } = useData();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: "", projectId: "", priority: "medium" as const, dueDate: "", taskType: "manual" as const, aiContext: "" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [processing, setProcessing] = useState<string | null>(null);
+
+  // Admin only
+  if (user && user.role !== "admin") {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Shield className="w-16 h-16 text-text-muted mx-auto mb-4 opacity-30" />
+          <h2 className="text-xl font-bold text-text-primary mb-2">Admin Access Required</h2>
+          <p className="text-text-muted text-sm">Only administrators can manage tasks.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   const addTask = () => {
     if (!form.title.trim()) return;

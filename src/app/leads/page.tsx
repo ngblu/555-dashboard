@@ -5,12 +5,21 @@ import {
   Crosshair, Plus, X, ArrowRight, UserCheck, Rocket, ChevronRight,
   Copy, Check, ChevronDown, ExternalLink, Phone, Globe, BarChart3,
   Search, Gauge, Eye, Shield, Zap, Clock, Timer, Smartphone,
-  Play, RefreshCw, MapPin,
+  Play, RefreshCw, MapPin, Calendar, Layers, Star,
 } from "lucide-react";
 import { useData } from "@/lib/store";
-import type { LeadStatus, AuditMetrics } from "@/lib/types";
+import type { LeadStatus, AuditMetrics, Lead, SalesStage } from "@/lib/types";
 import GeneratePitchButton from "@/components/ui/GeneratePitch";
 import TargetsManager from "@/components/leads/TargetsManager";
+
+type Target = { city: string; state: string; industry: string };
+type TargetReport = {
+  target: Target;
+  totalFound: number;
+  leadsCreated: number;
+  leads: any[];
+  error?: string;
+};
 
 const statusFlow: LeadStatus[] = ["found", "audited", "emailed", "replied", "converted"];
 
@@ -72,14 +81,23 @@ function sourceBadge(source: string | undefined) {
 }
 
 export default function LeadsPage() {
-  const { leads, setLeads, convertLeadToClient, convertLeadToProject, addNotification } = useData();
+  const { leads, setLeads, convertLeadToClient, convertLeadToProject, addNotification, addMeeting, toggleFavorite } = useData();
   const [showForm, setShowForm] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [runningFinder, setRunningFinder] = useState(false);
   const [finderStatus, setFinderStatus] = useState<string>("");
+  const [finderReports, setFinderReports] = useState<TargetReport[]>([]);
   const [showTargets, setShowTargets] = useState(false);
+  const [showTargetSelector, setShowTargetSelector] = useState(false);
   const [scoring, setScoring] = useState(false);
+  const [areaFilter, setAreaFilter] = useState<string | null>(null);
+  const [stateFilter, setStateFilter] = useState<string | null>(null);
+  const [cityFilter, setCityFilter] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortByFavorites, setSortByFavorites] = useState(false);
+  const [targets, setTargets] = useState<Target[]>([]);
+  const [selectedTargets, setSelectedTargets] = useState<Set<number>>(new Set());
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [form, setForm] = useState({
     businessName: "",
@@ -88,7 +106,31 @@ export default function LeadsPage() {
     contactEmail: "",
     phone: "",
     notes: "",
+    zip: "",
   });
+
+  // Load targets from bridge (for multi-target selection)
+  useEffect(() => {
+    fetch("http://localhost:5555/api/lead-finder/targets")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setTargets(data);
+          setSelectedTargets(new Set(data.map((_, i) => i))); // select all by default
+        }
+      })
+      .catch(() => {
+        // Fallback: hardcoded targets when bridge not available
+        const fallback: Target[] = [
+          { city: "Wichita", state: "KS", industry: "Plumbing" },
+          { city: "Wichita", state: "KS", industry: "HVAC" },
+          { city: "Wichita", state: "KS", industry: "Roofing" },
+          { city: "Wichita", state: "KS", industry: "Landscaping" },
+        ];
+        setTargets(fallback);
+        setSelectedTargets(new Set(fallback.map((_, i) => i)));
+      });
+  }, []);
 
   const addLead = () => {
     if (!form.businessName.trim()) return;
@@ -104,6 +146,7 @@ export default function LeadsPage() {
         contactEmail: form.contactEmail.trim(),
         phone: form.phone.trim(),
         notes: form.notes.trim(),
+        zip: form.zip.trim(),
         audit: null,
         source: "manual",
         createdAt: new Date().toISOString(),
@@ -111,11 +154,11 @@ export default function LeadsPage() {
       ...prev,
     ]);
     addNotification(`New lead: ${form.businessName.trim()}`, "success", "/leads");
-    setForm({ businessName: "", website: "", industry: "", contactEmail: "", phone: "", notes: "" });
+    setForm({ businessName: "", website: "", industry: "", contactEmail: "", phone: "", notes: "", zip: "" });
     setShowForm(false);
   };
 
-  // Load server-side leads on mount (local + Vercel relay)
+  // Load server-side leads on mount (local + Vercel relay + data store)
   useEffect(() => {
     // Local leads
     fetch("/api/submit-lead")
@@ -123,6 +166,16 @@ export default function LeadsPage() {
       .then((data) => {
         if (data.leads && data.leads.length > 0) {
           mergeServerLeads(data.leads);
+        }
+      })
+      .catch(() => {});
+    // Vercel data store
+    fetch("/api/data")
+      .then((r) => r.json())
+      .then((data) => {
+        const storeLeads = data?.data?.leads || data?.leads;
+        if (storeLeads && storeLeads.length > 0) {
+          mergeServerLeads(storeLeads);
         }
       })
       .catch(() => {});
@@ -161,6 +214,10 @@ export default function LeadsPage() {
       createdAt: String(l.createdAt || new Date().toISOString()),
       score: typeof l.score === "number" ? l.score : undefined,
       classification: (l.classification as "hot" | "warm" | "cold") || undefined,
+      area: typeof l.area === "string" ? l.area : undefined,
+      zip: typeof l.zip === "string" ? l.zip : undefined,
+      assignedTo: typeof l.assignedTo === "string" ? l.assignedTo : undefined,
+      salesStage: (l.salesStage as Lead["salesStage"]) || undefined,
     }));
     setLeads((prev) => {
       const existingIds = new Set(prev.map((p) => p.id));
@@ -175,90 +232,71 @@ export default function LeadsPage() {
     });
   }
 
-  const runLeadFinder = async () => {
+  const runLeadFinder = async (useAllTargets = false) => {
     setRunningFinder(true);
-    setFinderStatus("Starting Lead Finder...");
-    addNotification("Lead Finder scanning page 2 Google results...", "info");
-    
-    // Clear any existing poll
-    if (pollRef.current) clearInterval(pollRef.current);
+    setFinderReports([]);
+
+    // Determine which targets to run
+    let targetsToRun: Target[];
+    if (useAllTargets && targets.length > 0) {
+      targetsToRun = targets.filter((_, i) => selectedTargets.has(i));
+    } else {
+      // Single default target (backward compat)
+      targetsToRun = [{ city: "Cookeville", state: "TN", industry: "Plumbing" }];
+    }
+
+    if (targetsToRun.length === 0) {
+      setFinderStatus("No targets selected. Pick at least one.");
+      setRunningFinder(false);
+      addNotification("No targets selected", "warning");
+      return;
+    }
+
+    const targetCount = targetsToRun.length;
+    setFinderStatus(`Running ${targetCount} target(s) in parallel...`);
+    addNotification(`Lead Finder: ${targetCount} agent(s) scanning...`, "info");
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      const res = await fetch("http://localhost:5555/api/lead-finder", {
+      const res = await fetch("/api/lead-finder/run", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer 555-remote-bridge" },
-        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targets: targetsToRun }),
       });
-      clearTimeout(timeoutId);
       const data = await res.json();
 
-      if (data.status === "started" || data.status === "already_running") {
-        setFinderStatus("Scanning... checking for new leads every 5s");
-        
-        // Poll for status and new leads from server
-        pollRef.current = setInterval(async () => {
-          try {
-            // Check if finder is still running
-            const sRes = await fetch("http://localhost:5555/api/lead-finder/status", {
-              headers: { "Authorization": "Bearer 555-remote-bridge" },
-            });
-            const sData = await sRes.json();
-            if (!sData.running) {
-              setFinderStatus(sData.output.includes("LEAD:") ? "Complete! New leads found." : "Done. See results below.");
-              setRunningFinder(false);
-              if (pollRef.current) clearInterval(pollRef.current);
-            }
-          } catch {}
+      // Show per-target results
+      if (data.reports) {
+        setFinderReports(data.reports);
+      }
 
-          // Fetch new leads from server API
-          try {
-            const lRes = await fetch("/api/submit-lead");
-            const lData = await lRes.json();
-            if (lData.leads && lData.leads.length > 0) {
-              mergeServerLeads(lData.leads);
-            }
-          } catch {}
-        }, 5000);
-
-        setTimeout(() => {
-          // Safety: stop polling after 5 minutes
-          if (pollRef.current) {
-            clearInterval(pollRef.current);
-            setRunningFinder(false);
-            setFinderStatus("Timed out. Check results below.");
-          }
-        }, 300000);
-
-      } else if (data.status === "already_running") {
-        setFinderStatus("Lead Finder is already running...");
-      } else {
-        setFinderStatus("Started (status: " + (data.status || "unknown") + ")");
+      if (data.success) {
+        const msg = `${data.leadsCreated} leads from ${data.targetsProcessed}/${targetCount} targets`;
+        setFinderStatus(`Done! ${msg}`);
         setRunningFinder(false);
+        addNotification(`Lead Finder: ${msg}`, "success");
+        // Refresh leads from server
+        try {
+          const lRes = await fetch("/api/submit-lead");
+          const lData = await lRes.json();
+          if (lData.leads) mergeServerLeads(lData.leads);
+        } catch {}
+        try {
+          const dRes = await fetch("/api/data");
+          const dData = await dRes.json();
+          if (dData.data?.leads) mergeServerLeads(dData.data.leads);
+        } catch {}
+      } else {
+        const errSummary = data.errors?.length
+          ? data.errors.map((e: any) => `${e.target.city} ${e.target.industry}: ${e.error}`).join("; ")
+          : data.error || "Search failed";
+        setFinderStatus(errSummary);
+        setRunningFinder(false);
+        addNotification("Lead Finder: " + errSummary, "error");
       }
     } catch {
-      // Fallback: try relay
-      setFinderStatus("Bridge unavailable. Trying cloud relay...");
-      try {
-        const res = await fetch("/api/bridge", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer 555-remote-bridge" },
-          body: JSON.stringify({ op: "send", action: "run_lead_finder" }),
-        });
-        const data = await res.json();
-        if (data.ok) {
-          setFinderStatus("Queued via cloud relay. Check back soon.");
-          addNotification("Lead Finder queued via relay. Results will appear when bridge processes them.", "info");
-        } else {
-          setFinderStatus("Could not reach bridge. Is it running?");
-          addNotification("Could not reach bridge. Is it running?", "error");
-        }
-      } catch {
-        setFinderStatus("Could not reach bridge. Start the bridge on your desktop first.");
-        addNotification("Could not reach bridge. Start the bridge on your desktop first.", "error");
-      }
+      setFinderStatus("Network error. Try again.");
       setRunningFinder(false);
+      addNotification("Lead Finder network error", "error");
     }
   };
 
@@ -302,6 +340,23 @@ export default function LeadsPage() {
     const lead = leads.find((l) => l.id === leadId);
     convertLeadToClient(leadId);
     addNotification(`Converted: ${lead?.businessName || "Unknown"}`, "success", "/clients");
+  };
+
+  const handleScheduleMeeting = (leadId: string) => {
+    const lead = leads.find((l) => l.id === leadId);
+    if (!lead) return;
+    const today = new Date().toISOString().split("T")[0];
+    addMeeting({
+      leadId: lead.id,
+      leadName: lead.businessName,
+      title: `Meeting: ${lead.businessName}`,
+      date: today,
+      time: "09:00",
+      duration: 30,
+      notes: lead.notes || "",
+      status: "scheduled",
+    });
+    addNotification(`Meeting scheduled with ${lead.businessName}`, "success", "/calendar");
   };
 
   const handleConvertToProject = (leadId: string) => {
@@ -359,7 +414,34 @@ export default function LeadsPage() {
           </h1>
           <p className="text-text-muted text-xs sm:text-sm mt-0.5 sm:mt-1">{leads.length} prospects tracked</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Search bar */}
+          <div className="relative w-full sm:w-auto sm:min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
+            <input
+              type="text"
+              placeholder="Search leads..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-surface border border-border rounded-lg pl-9 pr-8 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {/* Sort by favorites */}
+          <button
+            onClick={() => setSortByFavorites(!sortByFavorites)}
+            title={sortByFavorites ? "Show all leads" : "Show favorites first"}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors border shrink-0 ${
+              sortByFavorites ? "bg-warning/15 text-warning border-warning/30" : "bg-surface text-text-secondary border-border hover:border-border-bright"
+            }`}
+          >
+            <Star className={`w-3.5 h-3.5 ${sortByFavorites ? "fill-current" : ""}`} />
+            <span className="hidden sm:inline">Favorites</span>
+          </button>
           <button
             onClick={() => setShowTargets(!showTargets)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
@@ -368,6 +450,15 @@ export default function LeadsPage() {
           >
             <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Targets</span>
+          </button>
+          <button
+            onClick={() => setShowTargetSelector(!showTargetSelector)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
+              showTargetSelector ? "bg-secondary/10 text-secondary border-secondary/30" : "bg-surface text-text-secondary border-border hover:border-border-bright"
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Multi-Agent</span>
           </button>
           <button
             onClick={runScorer}
@@ -379,18 +470,27 @@ export default function LeadsPage() {
             <span className="hidden sm:inline">Score</span>
           </button>
           <button
-            onClick={runLeadFinder}
+            onClick={() => runLeadFinder(true)}
             disabled={runningFinder}
             className="flex items-center gap-1.5 px-3 py-2 bg-accent/15 text-accent border border-accent/30 rounded-lg text-xs sm:text-sm font-medium hover:bg-accent/25 transition-colors disabled:opacity-50"
-            title="Run automated lead discovery"
+            title="Run all selected targets in parallel (multi-agent)"
           >
             {runningFinder ? (
               <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
             ) : (
-              <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <Rocket className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             )}
-            <span className="hidden sm:inline">Run Lead Finder</span>
-            <span className="sm:hidden">Find</span>
+            <span className="hidden sm:inline">Run All Targets</span>
+            <span className="sm:hidden">All</span>
+          </button>
+          <button
+            onClick={() => runLeadFinder(false)}
+            disabled={runningFinder}
+            className="flex items-center gap-1.5 px-3 py-2 bg-surface text-text-secondary border border-border rounded-lg text-xs sm:text-sm font-medium hover:border-border-bright transition-colors disabled:opacity-50"
+            title="Run single default target"
+          >
+            <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Quick</span>
           </button>
           <button
             onClick={() => setShowForm(!showForm)}
@@ -408,6 +508,166 @@ export default function LeadsPage() {
           {finderStatus}
         </div>
       )}
+
+      {/* Per-target progress (multi-agent mode) */}
+      {finderReports.length > 0 && (
+        <div className="space-y-1.5">
+          <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Agent Results</h4>
+          {finderReports.map((report, i) => (
+            <div key={i} className={`text-xs px-3 py-2 rounded-lg border flex items-center justify-between ${
+              report.error ? "bg-danger/10 border-danger/20 text-danger" :
+              report.leadsCreated > 0 ? "bg-success/15 border-success/20 text-success" :
+              "bg-surface border-border text-text-muted"
+            }`}>
+              <span>
+                <strong>{report.target.city}, {report.target.state}</strong> — {report.target.industry}
+                {" "}({report.totalFound} found)
+              </span>
+              <span className="font-mono font-bold">
+                {report.error ? "FAILED" : `${report.leadsCreated} leads`}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Multi-Agent target selector */}
+      {showTargetSelector && (
+        <div className="bg-surface border border-border rounded-xl p-3 sm:p-4 space-y-2 animate-slide-in">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Layers className="w-4 h-4 text-secondary" />
+              Select Targets ({selectedTargets.size}/{targets.length})
+            </h3>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setSelectedTargets(new Set(targets.map((_, i) => i)))}
+                className="text-[10px] px-2 py-0.5 rounded bg-surface-2 text-text-secondary border border-border hover:bg-surface-3 transition-colors"
+              >
+                All
+              </button>
+              <button
+                onClick={() => setSelectedTargets(new Set())}
+                className="text-[10px] px-2 py-0.5 rounded bg-surface-2 text-text-secondary border border-border hover:bg-surface-3 transition-colors"
+              >
+                None
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto">
+            {targets.map((t, i) => {
+              const sel = selectedTargets.has(i);
+              return (
+                <label
+                  key={i}
+                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border cursor-pointer text-xs transition-colors ${
+                    sel ? "bg-secondary/10 border-secondary/30 text-secondary" : "bg-surface-2 border-border text-text-secondary hover:border-border-bright"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={sel}
+                    onChange={() => {
+                      const next = new Set(selectedTargets);
+                      sel ? next.delete(i) : next.add(i);
+                      setSelectedTargets(next);
+                    }}
+                    className="rounded accent-secondary"
+                  />
+                  <span className="truncate">{t.city}, {t.state} — {t.industry}</span>
+                </label>
+              );
+            })}
+          </div>
+          {targets.length === 0 && (
+            <p className="text-xs text-text-muted py-2">
+              No targets configured. Add targets via the <strong>Targets</strong> tab or configure them in the bridge.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Location filter — state → city → category */}
+      {(() => {
+        // Parse areas into { state, city } objects
+        const parsed = leads
+          .map(l => l.area)
+          .filter(Boolean)
+          .map(a => {
+            const parts = (a as string).split(",").map(s => s.trim());
+            return parts.length >= 2
+              ? { state: parts[1], city: parts[0], raw: a as string }
+              : { state: "Other", city: parts[0] || (a as string), raw: a as string };
+          });
+
+        const states = [...new Set(parsed.map(p => p.state))].sort();
+        const citiesInState = stateFilter
+          ? [...new Set(parsed.filter(p => p.state === stateFilter).map(p => p.city))].sort()
+          : [];
+        const categories = [...new Set(leads.map(l => l.industry).filter(Boolean))].sort();
+
+        return (
+          <div className="space-y-2">
+            {/* State chips */}
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-[10px] text-text-muted uppercase tracking-wider mr-1">State</span>
+              <button onClick={() => { setStateFilter(null); setCityFilter(null); setAreaFilter(null); }}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${!stateFilter ? "bg-primary/20 text-primary border-primary/30" : "bg-surface-2 text-text-muted border-border hover:border-text-muted/30"}`}>
+                All ({leads.length})
+              </button>
+              {states.map(st => {
+                const count = parsed.filter(p => p.state === st).length;
+                return (
+                  <button key={st}
+                    onClick={() => { setStateFilter(stateFilter === st ? null : st); setCityFilter(null); setAreaFilter(null); }}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${stateFilter === st ? "bg-primary/20 text-primary border-primary/30" : "bg-surface-2 text-text-muted border-border hover:border-text-muted/30"}`}>
+                    {st} ({count})
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* City chips (when state selected) */}
+            {stateFilter && citiesInState.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 items-center ml-2 pl-2 border-l border-border">
+                <span className="text-[10px] text-text-muted uppercase tracking-wider mr-1">City</span>
+                <button onClick={() => { setCityFilter(null); setAreaFilter(null); }}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${!cityFilter ? "bg-secondary/20 text-secondary border-secondary/30" : "bg-surface-2 text-text-muted border-border hover:border-text-muted/30"}`}>
+                  All {stateFilter} ({parsed.filter(p => p.state === stateFilter).length})
+                </button>
+                {citiesInState.map(city => {
+                  const count = parsed.filter(p => p.state === stateFilter && p.city === city).length;
+                  return (
+                    <button key={city}
+                      onClick={() => { setCityFilter(cityFilter === city ? null : city); setAreaFilter(null); }}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${cityFilter === city ? "bg-secondary/20 text-secondary border-secondary/30" : "bg-surface-2 text-text-muted border-border hover:border-text-muted/30"}`}>
+                      {city} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Area filter chips (legacy — kept for direct area matching) */}
+            {!stateFilter && parsed.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 items-center">
+                <span className="text-[10px] text-text-muted uppercase tracking-wider mr-1">Area</span>
+                <button onClick={() => setAreaFilter(null)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${!areaFilter ? "bg-primary/20 text-primary border-primary/30" : "bg-surface-2 text-text-muted border-border hover:border-text-muted/30"}`}>
+                  All ({leads.length})
+                </button>
+                {([...new Set(leads.map(l => l.area).filter(Boolean))] as string[]).sort().map(area => (
+                  <button key={area}
+                    onClick={() => setAreaFilter(areaFilter === area ? null : area)}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${areaFilter === area ? "bg-primary/20 text-primary border-primary/30" : "bg-surface-2 text-text-muted border-border hover:border-text-muted/30"}`}>
+                    {area} ({leads.filter(l => l.area === area).length})
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Targets Manager */}
       {showTargets && <TargetsManager />}
@@ -440,6 +700,12 @@ export default function LeadsPage() {
               className={inputCls}
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+            <input
+              placeholder="Zip Code"
+              className={inputCls}
+              value={form.zip}
+              onChange={(e) => setForm({ ...form, zip: e.target.value })}
             />
             <input
               placeholder="Contact Email"
@@ -479,23 +745,62 @@ export default function LeadsPage() {
             <Crosshair className="w-8 h-8 sm:w-10 sm:h-10 text-text-muted mx-auto mb-3 sm:mb-4" />
             <h3 className="text-text-primary font-semibold mb-2 text-sm sm:text-base">No leads yet</h3>
             <p className="text-text-muted text-xs sm:text-sm max-w-md mx-auto mb-4">
-              Add your first prospect or click <strong>Run Lead Finder</strong> to automatically discover leads from page 2 of Google.
+              Add your first prospect or click <strong>Run All Targets</strong> to discover leads from page 2 of Google using multiple search agents in parallel.
             </p>
             <div className="flex items-center justify-center gap-2 flex-wrap">
               <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
                 <Plus className="w-4 h-4" /> Add Lead
               </button>
-              <button onClick={runLeadFinder} disabled={runningFinder} className="inline-flex items-center gap-2 px-4 py-2 bg-accent/15 text-accent border border-accent/30 rounded-lg text-sm font-medium hover:bg-accent/25 transition-colors disabled:opacity-50">
-                {runningFinder ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                Run Lead Finder
+              <button onClick={() => runLeadFinder(true)} disabled={runningFinder} className="inline-flex items-center gap-2 px-4 py-2 bg-accent/15 text-accent border border-accent/30 rounded-lg text-sm font-medium hover:bg-accent/25 transition-colors disabled:opacity-50">
+                {runningFinder ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+                Run All Targets
               </button>
             </div>
           </div>
         )}
 
-        {leads.map((lead) => {
-          const isExpanded = expandedId === lead.id;
-          const currentIdx = statusFlow.indexOf(lead.status);
+        {/* Apply search + location + area filters, sort */}
+        {leads
+          .filter(l => {
+            if (!searchQuery) return true;
+            const q = searchQuery.toLowerCase();
+            return (
+              (l.businessName || "").toLowerCase().includes(q) ||
+              (l.website || "").toLowerCase().includes(q) ||
+              (l.industry || "").toLowerCase().includes(q) ||
+              (l.notes || "").toLowerCase().includes(q) ||
+              (l.contactEmail || "").toLowerCase().includes(q) ||
+              (l.phone || "").toLowerCase().includes(q)
+            );
+          })
+          .filter(l => {
+            if (!stateFilter) return true;
+            const a = l.area || "";
+            const parts = a.split(",").map(s => s.trim());
+            return parts.length >= 2 ? parts[1] === stateFilter : stateFilter === "Other";
+          })
+          .filter(l => {
+            if (!cityFilter) return true;
+            const a = l.area || "";
+            const parts = a.split(",").map(s => s.trim());
+            return (parts[0] || a) === cityFilter;
+          })
+          .filter(l => !areaFilter || l.area === areaFilter)
+          .sort((a, b) => {
+            // Favorites first when sort enabled
+            if (sortByFavorites) {
+              if (a.favorited && !b.favorited) return -1;
+              if (!a.favorited && b.favorited) return 1;
+            }
+            // Then by industry, then by business name
+            const ia = a.industry || "zzz";
+            const ib = b.industry || "zzz";
+            if (ia !== ib) return ia.localeCompare(ib);
+            return (a.businessName || "").localeCompare(b.businessName || "");
+          })
+          .map((lead) => {
+            const isExpanded = expandedId === lead.id;
+            const currentIdx = statusFlow.indexOf(lead.status);
           const canAdvance = currentIdx >= 0 && currentIdx < statusFlow.length - 1;
           const ranking = parseRankingFromNotes(lead.notes || "");
           const audit = lead.audit as AuditMetrics | null | undefined;
@@ -586,6 +891,14 @@ export default function LeadsPage() {
                     )}
                   </div>
                 </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleFavorite(lead.id); }}
+                  className={`shrink-0 p-1 -mr-1 transition-colors ${lead.favorited ? "text-warning hover:text-warning/70" : "text-text-muted hover:text-warning"}`}
+                  aria-label={lead.favorited ? "Unfavorite" : "Favorite"}
+                  title={lead.favorited ? "Unfavorite" : "Favorite"}
+                >
+                  <Star className={`w-4 h-4 ${lead.favorited ? "fill-current" : ""}`} />
+                </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); deleteLead(lead.id); }}
                   className="text-text-muted hover:text-danger shrink-0 p-1 -mr-1"
@@ -802,6 +1115,12 @@ export default function LeadsPage() {
                           industry: lead.industry || undefined,
                         }}
                       />
+                      <button
+                        onClick={() => handleScheduleMeeting(lead.id)}
+                        className="flex items-center gap-1 text-[10px] sm:text-xs px-2 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 min-h-[36px] whitespace-nowrap"
+                      >
+                        <Calendar className="w-3 h-3" /> Schedule
+                      </button>
                       {lead.status !== "converted" && (
                         <>
                           <button

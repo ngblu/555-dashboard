@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useData } from "@/lib/store";
 
 export default function TimeGreeting() {
   const [greeting, setGreeting] = useState("");
+  const { user } = useData();
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -12,9 +14,11 @@ export default function TimeGreeting() {
     else setGreeting("Good evening");
   }, []);
 
+  const firstName = user?.name?.split(" ")[0] || "Noah";
+
   return (
     <span className="text-text-primary font-medium">
-      {greeting}, <span className="text-primary">Noah</span>
+      {greeting}, <span className="text-primary">{firstName}</span>
     </span>
   );
 }

@@ -33,13 +33,6 @@
       "description": "Quick-add a new lead",
       "url": "/leads?action=add",
       "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
-    },
-    {
-      "name": "Jarvis AI",
-      "short_name": "Jarvis",
-      "description": "Open Jarvis AI assistant",
-      "url": "/connect",
-      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
     }
   ]
 }

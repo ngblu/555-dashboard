@@ -9,7 +9,7 @@ import json, os, sys, time, urllib.request, urllib.parse
 from ddgs import DDGS
 
 HERMES_API = "http://127.0.0.1:8642/v1/chat/completions"
-DASHBOARD_API = "http://127.0.0.1:3000/api"
+DASHBOARD_API = "https://555-dashboard.vercel.app/api"
 
 key_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".hermes_key")
 try:
@@ -199,14 +199,16 @@ def hermes_enrich(biz, industry, city, state):
 
 def create_lead(biz, audit, enrich, industry, city, state):
     has_audit = "error" not in audit
+    area = f"{city}, {state}"
     lead = {
         "businessName": biz.get("name", "Unknown")[:100],
         "website": biz.get("website", ""),
         "industry": industry,
         "contactEmail": enrich.get("email", ""),
         "phone": enrich.get("phone", ""),
+        "area": area,
         "notes": (
-            f"PAGE 2 GOOGLE - {city}, {state}. "
+            f"PAGE 2 GOOGLE - {area}. "
             f"Perf {audit.get('performance','?')}/100, "
             f"SEO {audit.get('seo','?')}/100. "
             f"{enrich.get('reason','')}"

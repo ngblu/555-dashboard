@@ -23,19 +23,44 @@ import {
   PanelLeftClose,
   Bell,
   MessageSquare,
+  TrendingUp,
+  LogOut,
+  Shield,
+  Calendar,
 } from "lucide-react";
 import { useData } from "@/lib/store";
+import { useRouter } from "next/navigation";
 
-const navItems = [
+const adminNavItems = [
   { href: "/", icon: LayoutDashboard, label: "Overview" },
   { href: "/audit", icon: FileSearch, label: "Site Audit" },
   { href: "/leads", icon: Crosshair, label: "Leads" },
+  { href: "/sales", icon: TrendingUp, label: "Sales" },
   { href: "/clients", icon: Users, label: "Clients" },
   { href: "/projects", icon: FolderKanban, label: "Projects" },
   { href: "/subscriptions", icon: Repeat, label: "Subscriptions" },
   { href: "/emails", icon: Mail, label: "Emails" },
+  { href: "/admin/users", icon: Shield, label: "Users" },
   { href: "/tasks", icon: CheckSquare, label: "Tasks" },
+  { href: "/calendar", icon: Calendar, label: "Calendar" },
   { href: "/revenue", icon: DollarSign, label: "Revenue" },
+];
+
+const salesmanNavItems = [
+  { href: "/", icon: LayoutDashboard, label: "Overview" },
+  { href: "/audit", icon: FileSearch, label: "Site Audit" },
+  { href: "/sales", icon: TrendingUp, label: "My Pipeline" },
+  { href: "/leads", icon: Crosshair, label: "Leads" },
+  { href: "/calendar", icon: Calendar, label: "Calendar" },
+];
+
+const managerNavItems = [
+  { href: "/", icon: LayoutDashboard, label: "Overview" },
+  { href: "/audit", icon: FileSearch, label: "Site Audit" },
+  { href: "/sales", icon: TrendingUp, label: "Sales Pipeline" },
+  { href: "/leads", icon: Crosshair, label: "All Leads" },
+  { href: "/calendar", icon: Calendar, label: "Calendar" },
+  { href: "/admin/users", icon: Shield, label: "Team" },
 ];
 
 function useCollapsed() {
@@ -77,13 +102,26 @@ function useCollapsed() {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { syncStatus, notifications } = useData();
+  const router = useRouter();
+  const { syncStatus, notifications, user, setUser } = useData();
   const [open, setOpen] = useState(false);
   const { collapsed, toggle, mounted } = useCollapsed();
 
   const close = () => setOpen(false);
 
   const unreadNotifs = notifications.filter((n) => !n.read).length;
+
+  // Choose nav items based on role
+  const navItems = user?.role === "salesman" ? salesmanNavItems : user?.role === "manager" ? managerNavItems : adminNavItems;
+  const userInitial = user?.name?.charAt(0)?.toUpperCase() || "N";
+  const userName = user?.name || "User";
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setUser(null);
+    router.push("/login");
+    router.refresh();
+  }
 
   const sync = {
     loading: {
@@ -247,8 +285,8 @@ export default function Sidebar() {
             )}
           </Link>
 
-          {/* User avatar / initials */}
-          {!collapsed && (
+          {/* User avatar / initials — always visible when mobile drawer is open */}
+          {(!collapsed || open) && (
             <div className="flex items-center gap-2">
               {/* Notifications bell */}
               <Link
@@ -272,10 +310,21 @@ export default function Sidebar() {
               {/* User avatar */}
               <div
                 className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xs font-bold text-white shrink-0 border-2 border-border"
-                title="Noah"
+                title={userName}
               >
-                N
+                {userInitial}
               </div>
+
+              {/* Logout */}
+              {user && (
+                <button
+                  onClick={handleLogout}
+                  className="p-1.5 text-text-muted hover:text-danger transition-colors rounded-lg hover:bg-surface-2"
+                  title="Sign out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
 
               {/* Close button (mobile) */}
               <button
@@ -291,7 +340,7 @@ export default function Sidebar() {
           {collapsed && (
             <div className="flex flex-col items-center gap-1">
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-[10px] font-bold text-white border border-border">
-                N
+                {userInitial}
               </div>
             </div>
           )}
